@@ -1,0 +1,7 @@
+{
+  "name": "Catálogo Economize Atacadão",
+  "description": "Aplicativo de catálogo de produtos com gestão de pedidos para o Atacadão, permitindo que gerentes gerenciem estoque e clientes, e clientes realizem pedidos gerando PDFs.",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}
