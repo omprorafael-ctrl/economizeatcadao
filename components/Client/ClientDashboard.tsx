@@ -133,7 +133,7 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({
         </div>
       )}
 
-      {/* Header Minimalista */}
+      {/* Header Minimalista com Cesta Superior */}
       <header className={`bg-white border-b border-slate-50 sticky top-0 z-40 transition-all duration-300 ${isImmersive ? 'py-3' : 'py-4'}`}>
         <div className="max-w-7xl mx-auto px-5 sm:px-8">
           <div className="flex items-center justify-between gap-4">
@@ -144,7 +144,7 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({
               >
                 <Menu className="w-6 h-6" />
               </button>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 cursor-pointer" onClick={() => setActiveTab('catalog')}>
                 <div className="w-8 h-8 bg-red-600 rounded-none flex items-center justify-center shadow-lg shadow-red-100">
                   <PackageSearch className="w-5 h-5 text-white" />
                 </div>
@@ -152,7 +152,7 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({
               </div>
             </div>
 
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-1.5 sm:gap-3">
               <button 
                 onClick={() => setShowNotifications(!showNotifications)}
                 className="p-2 text-slate-400 hover:text-red-500 relative"
@@ -160,8 +160,21 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({
                 <Bell className="w-5 h-5" />
                 {promoItems.length > 0 && <span className="absolute top-2 right-2 w-2 h-2 bg-red-600 rounded-full border-2 border-white" />}
               </button>
+
+              {/* Ícone da Cesta no Topo */}
+              <button 
+                onClick={() => setActiveTab('cart')}
+                className={`p-2 transition-colors relative ${activeTab === 'cart' ? 'text-red-600' : 'text-slate-400 hover:text-red-600'}`}
+              >
+                <ShoppingCart className="w-5 h-5" />
+                {cartCount > 0 && (
+                  <span className="absolute -top-1 -right-1 bg-red-600 text-white text-[8px] font-black min-w-[17px] h-[17px] px-1 rounded-full flex items-center justify-center border-2 border-white shadow-sm">
+                    {cartCount}
+                  </span>
+                )}
+              </button>
               
-              <div className="w-9 h-9 rounded-none bg-slate-100 border border-slate-200 flex items-center justify-center text-slate-400 font-black text-xs cursor-pointer hover:border-red-200 transition-colors" onClick={() => setActiveTab('profile')}>
+              <div className="w-9 h-9 rounded-none bg-slate-100 border border-slate-200 flex items-center justify-center text-slate-400 font-black text-xs cursor-pointer hover:border-red-200 transition-colors ml-1" onClick={() => setActiveTab('profile')}>
                 {user.name.charAt(0)}
               </div>
             </div>
@@ -238,70 +251,12 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({
             </div>
           )}
         </div>
-
-        {/* Floating Cart Button */}
-        {activeTab === 'catalog' && cartCount > 0 && (
-          <div className="fixed bottom-8 left-1/2 -translate-x-1/2 w-[90%] max-w-[400px] z-50 animate-in slide-in-from-bottom-10 duration-500">
-             <button 
-               onClick={() => setActiveTab('cart')}
-               className="w-full bg-slate-900 text-white rounded-none p-2 flex items-center justify-between shadow-2xl ring-4 ring-white/10 hover:scale-[1.02] active:scale-95 transition-all"
-             >
-                <div className="flex items-center gap-3">
-                   <div className="w-12 h-12 bg-red-600 rounded-none flex items-center justify-center relative">
-                      <ShoppingCart className="w-5 h-5" />
-                      <span className="absolute -top-1 -right-1 w-6 h-6 bg-white text-slate-900 text-[10px] font-black rounded-none flex items-center justify-center border-2 border-red-600">
-                        {cartCount}
-                      </span>
-                   </div>
-                   <div className="text-left">
-                      <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Finalizar Pedido</p>
-                      <p className="text-sm font-black">R$ {cartTotal.toFixed(2).replace('.', ',')}</p>
-                   </div>
-                </div>
-                <div className="pr-4 flex items-center gap-2">
-                   <span className="text-[10px] font-black uppercase tracking-widest">Ver Cesta</span>
-                   <ArrowRight className="w-4 h-4 text-red-500" />
-                </div>
-             </button>
-          </div>
-        )}
       </main>
-
-      {/* Mobile Navigation Bar - Removido !isImmersive para evitar erro TS2367 e permitir navegação */}
-      <div className="md:hidden fixed bottom-6 left-1/2 -translate-x-1/2 w-[90%] max-w-[400px] bg-white border border-slate-100 rounded-none flex items-center justify-around py-3 px-2 shadow-2xl shadow-slate-300/40 z-50 backdrop-blur-md">
-        <NavButton active={activeTab === 'catalog'} onClick={() => setActiveTab('catalog')} icon={List} label="Catálogo" />
-        <NavButton active={activeTab === 'cart'} onClick={() => setActiveTab('cart')} icon={ShoppingCart} label="Cesta" count={cartCount} />
-        <NavButton active={activeTab === 'history'} onClick={() => setActiveTab('history')} icon={History} label="Pedidos" />
-        <NavButton active={activeTab === 'profile'} onClick={() => setActiveTab('profile')} icon={User} label="Perfil" />
-      </div>
     </div>
   );
 };
 
 /* --- Sub-componentes com tipagem explícita --- */
-
-interface NavButtonProps {
-  active: boolean;
-  onClick: () => void;
-  icon: any;
-  label: string;
-  count?: number;
-}
-
-const NavButton: React.FC<NavButtonProps> = ({ active, onClick, icon: Icon, label, count }) => (
-  <button 
-    onClick={onClick}
-    className={`flex flex-col items-center p-2 rounded-none transition-all relative min-w-[65px] ${active ? 'text-red-600 bg-red-50/50' : 'text-slate-300'}`}
-  >
-    {count !== undefined && count > 0 && (
-      <span className="absolute -top-0.5 right-1.5 bg-red-600 text-white text-[8px] font-black min-w-[17px] h-[18px] px-1 rounded-none flex items-center justify-center border-2 border-white shadow-sm">
-        {count}
-      </span>
-    )}
-    <Icon className={`w-5 h-5 mb-1 ${active ? 'stroke-[2.5px]' : 'stroke-2'}`} />
-    <span className="text-[9px] font-black uppercase tracking-widest">{label}</span>
-  </button>
-);
 
 interface SideMenuButtonProps {
   active: boolean;
