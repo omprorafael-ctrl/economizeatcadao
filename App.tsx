@@ -53,17 +53,19 @@ const App: React.FC = () => {
     if (!currentUser) return;
 
     const unsubProducts = onSnapshot(collection(db, 'products'), (snapshot) => {
-      const prods = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Product));
+      const prods = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Product));
       setProducts(prods);
     }, (err) => console.error("Firestore Products Error:", err));
 
     const unsubOrders = onSnapshot(query(collection(db, 'orders'), orderBy('createdAt', 'desc')), (snapshot) => {
-      const ords = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Order));
+      // CRITICAL: We spread doc.data() FIRST and doc.id SECOND.
+      // This ensures that the ID used to reference the document for updates is the ACTUAL Firestore document ID.
+      const ords = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Order));
       setOrders(ords);
     }, (err) => console.error("Firestore Orders Error:", err));
 
     const unsubUsers = onSnapshot(collection(db, 'users'), (snapshot) => {
-      const allUsers = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as any));
+      const allUsers = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as any));
       setClients(allUsers.filter(u => u.role === UserRole.CLIENT) as ClientData[]);
       setManagers(allUsers.filter(u => u.role === UserRole.MANAGER));
       setSellers(allUsers.filter(u => u.role === UserRole.SELLER) as Seller[]);

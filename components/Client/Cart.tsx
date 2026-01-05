@@ -21,7 +21,7 @@ import {
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { db } from '../../firebaseConfig';
-import { collection, addDoc } from 'firebase/firestore';
+import { doc, setDoc } from 'firebase/firestore';
 
 interface CartProps {
   cart: CartItem[];
@@ -155,11 +155,15 @@ const Cart: React.FC<CartProps> = ({
           subtotal: item.price * item.quantity
         }))
       };
-      await addDoc(collection(db, 'orders'), newOrder);
+      
+      // CRITICAL: Use setDoc with the orderId to ensure document path matches order.id
+      await setDoc(doc(db, 'orders', orderId), newOrder);
+      
       setLastOrder(newOrder);
       await handleShareAndDownloadPDF(newOrder);
     } catch (err: any) {
-      console.error("Erro Order:", err);
+      console.error("Erro ao gerar pedido:", err);
+      alert("Erro ao salvar pedido: " + err.message);
     } finally {
       setIsGenerating(false);
     }
@@ -198,7 +202,7 @@ const Cart: React.FC<CartProps> = ({
   return (
     <div className="flex flex-col bg-slate-50 relative">
       
-      {/* Header Fixo (Sticky) de Conferência - Fica por cima da lista */}
+      {/* Header Fixo (Sticky) de Conferência */}
       <div className="bg-white px-6 py-5 sticky top-0 z-30 flex justify-between items-center border-b border-slate-200 shadow-sm transition-shadow">
         <div>
           <h2 className="text-sm font-black text-slate-900 uppercase tracking-widest">Conferência</h2>
@@ -210,8 +214,6 @@ const Cart: React.FC<CartProps> = ({
         </div>
       </div>
 
-      {/* Conteúdo da Cesta - Utiliza a rolagem do pai para permitir o efeito sticky */}
-      {/* Reduzido de p-4 para p-3 e de space-y-3 para space-y-1.5 */}
       <div className="p-3 space-y-1.5 pb-32">
         
         {/* Seção de Vendedora */}
@@ -248,12 +250,10 @@ const Cart: React.FC<CartProps> = ({
           </div>
         )}
 
-        {/* Lista de Itens que passam por trás do header */}
         <div className="space-y-1.5">
           {cart.map(item => {
             const isEditing = editingPriceId === item.id;
             return (
-              /* Compactado de p-4 para px-4 py-2.5 (Slim Card) */
               <div key={item.id} className="bg-white px-4 py-2.5 rounded-none border border-slate-100 shadow-sm flex items-center gap-4 transition-all hover:border-slate-200 animate-in fade-in slide-in-from-bottom-2">
                 <div className="flex-1 min-w-0">
                   <div className="flex items-start justify-between">
@@ -265,7 +265,6 @@ const Cart: React.FC<CartProps> = ({
                      )}
                   </div>
                   
-                  {/* Reduzido mt-3 para mt-1.5 */}
                   <div className="flex items-center justify-between mt-1.5">
                     <div className="flex items-center gap-3">
                       {isEditing ? (
@@ -308,7 +307,6 @@ const Cart: React.FC<CartProps> = ({
           })}
         </div>
 
-        {/* Painel de Finalização no Final da Lista */}
         <div className="mt-8 mb-20">
           {!lastOrder ? (
             <div className="bg-white border-t-4 border-red-600 p-6 rounded-none shadow-2xl animate-in slide-in-from-bottom-5">
@@ -347,7 +345,6 @@ const Cart: React.FC<CartProps> = ({
                 </button>
             </div>
           ) : (
-            /* Estado de Sucesso */
             <div className="bg-white p-8 rounded-none border border-emerald-100 shadow-2xl animate-in zoom-in-95 duration-500">
               <div className="text-center mb-6">
                 <div className="w-14 h-14 bg-emerald-50 text-emerald-500 rounded-none flex items-center justify-center mx-auto mb-4 shadow-inner">
