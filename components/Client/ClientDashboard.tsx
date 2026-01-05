@@ -209,7 +209,7 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({
 
             <div className="p-6 border-t border-slate-50 space-y-4">
               <div className="bg-slate-50 p-4 rounded-none border border-slate-100">
-                <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">CNPJ do PDV</p>
+                <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">CNPJ do Cliente</p>
                 <p className="text-[11px] font-bold text-slate-600">{user.cpfCnpj}</p>
               </div>
               <button onClick={onLogout} className="w-full flex items-center gap-3 px-4 py-3 text-red-600 font-black text-[10px] uppercase tracking-widest hover:bg-red-50 rounded-none transition-all">

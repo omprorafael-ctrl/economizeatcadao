@@ -198,7 +198,7 @@ const SellerDashboard: React.FC<SellerDashboardProps> = ({ user, orders, onLogou
             <div className="flex-1 overflow-y-auto p-8 space-y-8 scrollbar-hide">
               <div className="p-6 bg-slate-100/50 rounded-3xl border border-slate-200">
                 <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 flex items-center gap-2">
-                  <User className="w-3.5 h-3.5" /> Cliente / PDV
+                  <User className="w-3.5 h-3.5" /> Cliente
                 </p>
                 <p className="text-sm font-black text-slate-800 uppercase">{selectedOrder.clientName}</p>
                 <div className="mt-4 flex items-center gap-2 text-[10px] font-black text-emerald-600 uppercase bg-white px-3 py-1.5 rounded-xl border border-emerald-100 w-fit">

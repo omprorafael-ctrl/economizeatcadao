@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { Order, OrderStatus } from '../../types';
+import { Order, OrderStatus, Seller } from '../../types';
 import { 
   Eye, 
   Clock, 
@@ -19,26 +19,46 @@ import {
   CreditCard,
   MapPin,
   Activity,
-  Ban
+  Ban,
+  UserCheck
 } from 'lucide-react';
+import { db } from '../../firebaseConfig';
+import { doc, updateDoc } from 'firebase/firestore';
 
 interface OrderListProps {
   orders: Order[];
   setOrders: React.Dispatch<React.SetStateAction<Order[]>>;
+  sellers: Seller[];
 }
 
-const OrderList: React.FC<OrderListProps> = ({ orders, setOrders }) => {
+const OrderList: React.FC<OrderListProps> = ({ orders, setOrders, sellers }) => {
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
 
-  const updateStatus = (id: string, newStatus: OrderStatus) => {
-    setOrders(prev => prev.map(o => o.id === id ? { ...o, status: newStatus } : o));
-    if (selectedOrder?.id === id) {
-      setSelectedOrder(prev => prev ? { ...prev, status: newStatus } : null);
+  const updateStatus = async (id: string, newStatus: OrderStatus) => {
+    try {
+      await updateDoc(doc(db, 'orders', id), { status: newStatus });
+      // O onSnapshot cuidará do estado global, mas atualizamos localmente se necessário para rapidez
+    } catch (error) {
+      console.error("Erro ao atualizar status:", error);
     }
   };
 
-  // Mapeamento completo para evitar erro de undefined (causador da tela branca)
+  const updateSeller = async (id: string, sellerId: string) => {
+    const selectedSeller = sellers.find(s => s.id === sellerId);
+    if (!selectedSeller) return;
+
+    try {
+      await updateDoc(doc(db, 'orders', id), { 
+        sellerId: selectedSeller.id,
+        sellerName: selectedSeller.name 
+      });
+    } catch (error) {
+      console.error("Erro ao reatribuir vendedora:", error);
+      alert("Erro ao reatribuir vendedora.");
+    }
+  };
+
   const statusMap: Record<OrderStatus, { label: string, color: string, icon: any }> = {
     [OrderStatus.GENERATED]: { label: 'Novo Pedido', color: 'bg-blue-50 text-blue-600 border-blue-100', icon: Clock },
     [OrderStatus.IN_PROGRESS]: { label: 'Em Andamento', color: 'bg-amber-50 text-amber-600 border-amber-100', icon: Activity },
@@ -82,11 +102,12 @@ const OrderList: React.FC<OrderListProps> = ({ orders, setOrders }) => {
         </div>
 
         <div className="overflow-x-auto scrollbar-hide">
-          <table className="w-full text-left min-w-[900px]">
+          <table className="w-full text-left min-w-[1000px]">
             <thead className="bg-white text-slate-400 text-[10px] font-black uppercase tracking-[0.2em] border-b border-slate-100">
               <tr>
-                <th className="px-8 py-6">Ordem ID</th>
-                <th className="px-8 py-6">Parceiro Comercial</th>
+                <th className="px-8 py-6">ID</th>
+                <th className="px-8 py-6">Parceiro</th>
+                <th className="px-8 py-6">Vendedora Responsável</th>
                 <th className="px-8 py-6">Valor Total</th>
                 <th className="px-8 py-6">Status Operacional</th>
                 <th className="px-8 py-6 text-right">Ações</th>
@@ -101,6 +122,22 @@ const OrderList: React.FC<OrderListProps> = ({ orders, setOrders }) => {
                     <td className="px-8 py-6">
                       <div className="flex flex-col">
                         <span className="font-bold text-slate-800 text-xs uppercase truncate max-w-[200px]">{order.clientName}</span>
+                      </div>
+                    </td>
+                    <td className="px-8 py-6">
+                       <div className="relative inline-block w-full max-w-[200px]">
+                        <UserCheck className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-300 pointer-events-none" />
+                        <select 
+                          value={order.sellerId || ''}
+                          onChange={(e) => updateSeller(order.id, e.target.value)}
+                          className="w-full pl-9 pr-8 py-2 bg-white border border-slate-200 rounded-xl text-[10px] font-bold uppercase tracking-widest text-slate-600 outline-none focus:border-red-200 appearance-none cursor-pointer"
+                        >
+                          <option value="">Não Atribuído</option>
+                          {sellers.map(s => (
+                            <option key={s.id} value={s.id}>{s.name}</option>
+                          ))}
+                        </select>
+                        <ChevronRight className="absolute right-3 top-1/2 -translate-y-1/2 w-3 h-3 rotate-90 text-slate-200 pointer-events-none" />
                       </div>
                     </td>
                     <td className="px-8 py-6">
@@ -150,10 +187,17 @@ const OrderList: React.FC<OrderListProps> = ({ orders, setOrders }) => {
               <button onClick={() => setSelectedOrder(null)} className="p-3 text-slate-300 hover:text-red-600"><X className="w-6 h-6" /></button>
             </div>
             <div className="flex-1 overflow-y-auto p-8 space-y-6">
-              <div className="p-6 bg-slate-100/50 rounded-3xl border border-slate-200">
-                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Cliente</p>
-                <p className="text-sm font-black text-slate-800 uppercase">{selectedOrder.clientName}</p>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="p-6 bg-slate-100/50 rounded-3xl border border-slate-200">
+                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Cliente</p>
+                  <p className="text-sm font-black text-slate-800 uppercase">{selectedOrder.clientName}</p>
+                </div>
+                <div className="p-6 bg-red-50/30 rounded-3xl border border-red-100">
+                  <p className="text-[10px] font-black text-red-400 uppercase tracking-widest mb-1">Vendedora Atual</p>
+                  <p className="text-sm font-black text-red-600 uppercase">{selectedOrder.sellerName || 'Nenhuma atribuída'}</p>
+                </div>
               </div>
+
               <div className="border border-slate-100 rounded-3xl overflow-hidden">
                 <table className="w-full text-left">
                   <thead className="bg-slate-50 text-[9px] font-bold uppercase tracking-widest text-slate-400 border-b">

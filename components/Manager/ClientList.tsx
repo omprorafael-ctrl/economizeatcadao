@@ -14,10 +14,15 @@ import {
   Loader2,
   Key,
   ChevronRight,
-  ArrowRight
+  ArrowRight,
+  Edit2,
+  Trash2,
+  Check,
+  AlertTriangle,
+  Lock
 } from 'lucide-react';
 import { db, firebaseConfig } from '../../firebaseConfig';
-import { doc, setDoc } from 'firebase/firestore';
+import { doc, setDoc, updateDoc, deleteDoc } from 'firebase/firestore';
 import { initializeApp, deleteApp } from 'firebase/app';
 import { getAuth, createUserWithEmailAndPassword, signOut } from 'firebase/auth';
 
@@ -30,29 +35,112 @@ const ClientList: React.FC<ClientListProps> = ({ clients }) => {
   const [showModal, setShowModal] = useState(false);
   const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
-  const [formData, setFormData] = useState({ name: '', email: '', password: '', cpfCnpj: '', phone: '', address: '' });
+  const [editingClient, setEditingClient] = useState<ClientData | null>(null);
+  const [formData, setFormData] = useState({ 
+    name: '', 
+    email: '', 
+    password: '', 
+    cpfCnpj: '', 
+    phone: '', 
+    address: '' 
+  });
 
-  const handleCreateClient = async (e: React.FormEvent) => {
+  const handleOpenEdit = (client: any) => {
+    setEditingClient(client);
+    setFormData({
+      name: client.name,
+      email: client.email,
+      password: client.password || '', // Carrega a senha se estiver no doc
+      cpfCnpj: client.cpfCnpj || '',
+      phone: client.phone || '',
+      address: client.address || ''
+    });
+    setShowModal(true);
+  };
+
+  const resetForm = () => {
+    setFormData({ name: '', email: '', password: '', cpfCnpj: '', phone: '', address: '' });
+    setShowModal(false);
+    setEditingClient(null);
+  };
+
+  const handleSaveClient = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (formData.password.length < 6) return;
     setLoading(true);
-    const secondaryApp = initializeApp(firebaseConfig, "SecondaryApp");
-    const secondaryAuth = getAuth(secondaryApp);
+
     try {
-      const userCredential = await createUserWithEmailAndPassword(secondaryAuth, formData.email, formData.password);
-      const uid = userCredential.user.uid;
-      const newClient: ClientData = { id: uid, name: formData.name, email: formData.email, role: UserRole.CLIENT, active: true, createdAt: new Date().toISOString(), cpfCnpj: formData.cpfCnpj, phone: formData.phone, address: formData.address };
-      await setDoc(doc(db, 'users', uid), newClient);
-      await signOut(secondaryAuth);
-      await deleteApp(secondaryApp);
-      setShowModal(false);
-      setFormData({ name: '', email: '', password: '', cpfCnpj: '', phone: '', address: '' });
+      if (editingClient) {
+        // MODO EDIÇÃO TOTAL: Gerente pode alterar tudo, inclusive e-mail e senha no Firestore
+        // Nota: A alteração no Firestore serve para consulta do gerente. 
+        // Em um sistema real, a troca de e-mail/senha no Auth exigiria Firebase Admin SDK ou Cloud Functions.
+        await updateDoc(doc(db, 'users', editingClient.id), {
+          name: formData.name.trim(),
+          email: formData.email.trim(),
+          password: formData.password, // Armazenamos no doc para consulta do gerente
+          cpfCnpj: formData.cpfCnpj.trim(),
+          phone: formData.phone.trim(),
+          address: formData.address.trim()
+        });
+        resetForm();
+      } else {
+        // MODO NOVO CADASTRO
+        if (formData.password.length < 6) {
+          alert("A senha deve ter no mínimo 6 caracteres.");
+          setLoading(false);
+          return;
+        }
+
+        const secondaryApp = initializeApp(firebaseConfig, "ClientCreationApp");
+        const secondaryAuth = getAuth(secondaryApp);
+        
+        const userCredential = await createUserWithEmailAndPassword(secondaryAuth, formData.email, formData.password);
+        const uid = userCredential.user.uid;
+        
+        const newClient = { 
+          id: uid, 
+          name: formData.name.trim(), 
+          email: formData.email.trim(), 
+          password: formData.password, // Armazenamos para que o gerente possa ver depois
+          role: UserRole.CLIENT, 
+          active: true, 
+          createdAt: new Date().toISOString(), 
+          cpfCnpj: formData.cpfCnpj.trim(), 
+          phone: formData.phone.trim(), 
+          address: formData.address.trim() 
+        };
+
+        await setDoc(doc(db, 'users', uid), newClient);
+        await signOut(secondaryAuth);
+        await deleteApp(secondaryApp);
+        resetForm();
+      }
     } catch (error: any) {
       console.error(error);
-      alert("Erro ao cadastrar.");
-      try { await deleteApp(secondaryApp); } catch(e) {}
+      alert("Falha na operação: " + (error.message || "Erro desconhecido"));
+      if (!editingClient) {
+        try { await deleteApp(getAuth().app); } catch(e) {}
+      }
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleDeleteClient = async (id: string) => {
+    if (window.confirm("⚠️ EXCLUSÃO PERMANENTE: Você tem certeza que deseja remover este cliente? Todos os acessos serão revogados imediatamente.")) {
+      try {
+        await deleteDoc(doc(db, 'users', id));
+      } catch (error) {
+        console.error(error);
+        alert("Erro ao remover registro do banco de dados.");
+      }
+    }
+  };
+
+  const toggleStatus = async (id: string, currentStatus: boolean) => {
+    try {
+      await updateDoc(doc(db, 'users', id), { active: !currentStatus });
+    } catch (error) {
+      console.error(error);
     }
   };
 
@@ -63,103 +151,163 @@ const ClientList: React.FC<ClientListProps> = ({ clients }) => {
   );
 
   return (
-    <div className="space-y-6 animate-in fade-in duration-500">
-      <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
+    <div className="space-y-6 animate-in fade-in duration-500 pb-20">
+      <div className="bg-white p-6 rounded-[32px] border border-slate-200 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div className="relative flex-1 max-w-lg">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4" />
+          <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300 w-4 h-4" />
           <input 
             type="text" 
-            placeholder="Razão Social ou CNPJ..."
-            className="w-full pl-9 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:bg-white focus:border-red-300 transition-all text-xs font-bold text-slate-700"
+            placeholder="Pesquisar por Razão Social ou CNPJ..."
+            className="w-full pl-11 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:bg-white focus:border-red-300 transition-all text-xs font-bold text-slate-700 shadow-inner"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
         </div>
         <button 
-          onClick={() => setShowModal(true)}
-          className="bg-red-600 hover:bg-red-700 text-white px-6 py-2.5 rounded-xl font-bold text-[10px] uppercase tracking-widest flex items-center justify-center gap-3 shadow-md active:scale-95 transition-all"
+          onClick={() => { resetForm(); setShowModal(true); }}
+          className="bg-red-600 hover:bg-red-700 text-white px-8 py-3.5 rounded-2xl font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-3 shadow-xl shadow-red-100 active:scale-95 transition-all"
         >
-          <UserPlus className="w-4 h-4" /> Credenciar PDV
+          <UserPlus className="w-4 h-4" /> Credenciar Parceiro
         </button>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {filteredClients.map(client => (
-          <div key={client.id} className="bg-white border border-slate-200 rounded-3xl p-6 hover:shadow-md transition-all group flex flex-col">
-            <div className="flex items-start justify-between mb-6">
-              <div className="bg-slate-50 border border-slate-100 text-slate-700 w-12 h-12 rounded-xl flex items-center justify-center font-black text-xl shadow-sm">
+          <div key={client.id} className="bg-white border border-slate-200 rounded-[35px] p-8 hover:shadow-2xl hover:border-red-100 transition-all group flex flex-col relative overflow-hidden">
+            <div className="flex items-start justify-between mb-8">
+              <div className="bg-slate-50 border border-slate-100 text-slate-900 w-14 h-14 rounded-2xl flex items-center justify-center font-black text-2xl shadow-sm uppercase">
                 {client.name.charAt(0)}
               </div>
-              <div className={`px-3 py-1 rounded-full text-[8px] font-bold uppercase tracking-widest border ${client.active ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : 'bg-red-50 text-red-600 border-red-100'}`}>
-                {client.active ? 'Autorizado' : 'Bloqueado'}
-              </div>
+              <button 
+                onClick={() => toggleStatus(client.id, client.active)}
+                className={`px-4 py-1.5 rounded-full text-[8px] font-black uppercase tracking-widest border-2 transition-all ${
+                  client.active ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : 'bg-red-50 text-red-600 border-red-100'
+                }`}
+              >
+                {client.active ? 'ATIVO' : 'BLOQUEADO'}
+              </button>
             </div>
             
-            <h4 className="font-bold text-slate-900 text-sm mb-1 uppercase truncate">{client.name}</h4>
-            <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-6">{client.cpfCnpj || 'DOCUMENTO PENDENTE'}</p>
+            <h4 className="font-black text-slate-900 text-sm mb-1 uppercase truncate tracking-tight">{client.name}</h4>
+            <p className="text-[10px] font-black text-slate-300 uppercase tracking-[0.2em] mb-8">{client.cpfCnpj || 'DOC NÃO INFORMADO'}</p>
             
-            <div className="space-y-4 flex-1">
-              <div className="flex items-center gap-3 text-xs">
-                <Mail className="w-3.5 h-3.5 text-slate-300" />
-                <span className="truncate text-slate-600 font-medium italic">{client.email}</span>
+            <div className="space-y-5 flex-1">
+              <div className="flex items-center gap-4 text-xs">
+                <div className="p-2 bg-slate-50 rounded-lg"><Mail className="w-3.5 h-3.5 text-slate-400" /></div>
+                <span className="truncate text-slate-600 font-bold italic">{client.email}</span>
               </div>
-              <div className="flex items-center gap-3 text-xs">
-                <Phone className="w-3.5 h-3.5 text-slate-300" />
-                <span className="text-slate-600 font-medium">{client.phone || 'N/A'}</span>
+              <div className="flex items-center gap-4 text-xs">
+                <div className="p-2 bg-slate-50 rounded-lg"><Phone className="w-3.5 h-3.5 text-slate-400" /></div>
+                <span className="text-slate-600 font-bold">{client.phone || '(00) 00000-0000'}</span>
               </div>
-              <div className="flex items-start gap-3 text-xs">
-                <MapPin className="w-3.5 h-3.5 text-slate-300 mt-0.5" />
-                <span className="line-clamp-2 text-slate-500 font-medium">{client.address || 'Endereço não cadastrado'}</span>
+              <div className="flex items-start gap-4 text-xs">
+                <div className="p-2 bg-slate-50 rounded-lg shrink-0"><MapPin className="w-3.5 h-3.5 text-slate-400" /></div>
+                <span className="line-clamp-2 text-slate-500 font-bold leading-relaxed">{client.address || 'Endereço pendente'}</span>
               </div>
             </div>
 
-            <div className="mt-8 pt-4 border-t border-slate-100 flex items-center justify-between">
-              <button className="text-red-600 text-[9px] font-bold uppercase tracking-widest hover:text-red-700 flex items-center gap-1 group/btn">
-                Perfil Financeiro <ChevronRight className="w-3 h-3 group-hover/btn:translate-x-0.5 transition-transform" />
+            <div className="mt-10 pt-6 border-t border-slate-50 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <button 
+                  onClick={() => handleOpenEdit(client)}
+                  className="px-4 py-2 bg-white text-slate-400 hover:text-blue-600 border border-slate-100 rounded-xl transition-all flex items-center gap-2 shadow-sm"
+                >
+                  <Edit2 className="w-3.5 h-3.5" />
+                  <span className="text-[9px] font-black uppercase tracking-widest">Editar</span>
+                </button>
+                <button 
+                  onClick={() => handleDeleteClient(client.id)}
+                  className="p-3 text-slate-200 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all"
+                  title="Excluir Definitivamente"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </button>
+              </div>
+              <button className="text-slate-200 hover:text-slate-400">
+                <MoreHorizontal className="w-5 h-5" />
               </button>
-              <button className="text-slate-200 hover:text-slate-400 transition-colors"><MoreHorizontal className="w-4 h-4" /></button>
             </div>
           </div>
         ))}
       </div>
 
       {showModal && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 backdrop-blur-sm bg-slate-900/10">
-          <div className="absolute inset-0" onClick={() => setShowModal(false)} />
-          <div className="relative bg-white w-full max-w-2xl rounded-3xl shadow-2xl border border-slate-200 overflow-hidden animate-in zoom-in-95">
-            <div className="p-6 bg-slate-50 border-b border-slate-100 flex items-center justify-between">
-              <h3 className="text-sm font-bold text-slate-800 uppercase tracking-widest">Cadastro de Parceiro B2B</h3>
-              <button onClick={() => setShowModal(false)} className="p-1.5 text-slate-400 hover:text-slate-600"><X className="w-4 h-4" /></button>
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 backdrop-blur-md bg-slate-900/20">
+          <div className="absolute inset-0" onClick={() => !loading && resetForm()} />
+          <div className="relative bg-white w-full max-w-2xl rounded-[40px] shadow-2xl border border-slate-100 overflow-hidden animate-in zoom-in-95">
+            <div className="p-8 bg-slate-50 border-b border-slate-100 flex items-center justify-between">
+              <div>
+                <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest">
+                  {editingClient ? 'Gestão de Acesso Total' : 'Novo Credenciamento'}
+                </h3>
+                <p className="text-[9px] text-slate-400 font-bold uppercase tracking-widest mt-1">
+                  {editingClient ? `Editando perfil: ${editingClient.name}` : 'Adicionar parceiro comercial à base'}
+                </p>
+              </div>
+              <button onClick={() => !loading && resetForm()} className="p-2 bg-white text-slate-400 hover:text-red-600 rounded-xl border border-slate-100"><X className="w-5 h-5" /></button>
             </div>
-            <form onSubmit={handleCreateClient} className="p-8 space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-1.5">
-                  <label className="text-[9px] font-bold uppercase text-slate-400 tracking-widest ml-1">Razão Social</label>
-                  <input type="text" required className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:bg-white focus:border-red-300 transition-all font-bold text-slate-700 text-xs" value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} />
+            <form onSubmit={handleSaveClient} className="p-10 space-y-8">
+              
+              <div className="space-y-4">
+                <div className="flex items-center gap-2 border-b border-slate-100 pb-2">
+                   <Building2 className="w-4 h-4 text-red-500" />
+                   <span className="text-[10px] font-black uppercase tracking-widest text-slate-800">Dados da Empresa</span>
                 </div>
-                <div className="space-y-1.5">
-                  <label className="text-[9px] font-bold uppercase text-slate-400 tracking-widest ml-1">CNPJ / CPF</label>
-                  <input type="text" required className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:bg-white focus:border-red-300 transition-all font-bold text-slate-700 text-xs" value={formData.cpfCnpj} onChange={(e) => setFormData({ ...formData, cpfCnpj: e.target.value })} />
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-1.5">
-                  <label className="text-[9px] font-bold uppercase text-slate-400 tracking-widest ml-1">E-mail</label>
-                  <input type="email" required className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:bg-white focus:border-red-300 transition-all font-bold text-slate-700 text-xs" value={formData.email} onChange={(e) => setFormData({ ...formData, email: e.target.value })} />
-                </div>
-                <div className="space-y-1.5">
-                  <label className="text-[9px] font-bold uppercase text-slate-400 tracking-widest ml-1">Senha</label>
-                  <input type="password" required className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:bg-white focus:border-red-300 transition-all font-bold text-slate-700 text-xs" value={formData.password} onChange={(e) => setFormData({ ...formData, password: e.target.value })} />
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                  <div className="space-y-2">
+                    <label className="text-[9px] font-black uppercase text-slate-400 tracking-widest ml-1">Razão Social / Nome Fantasia</label>
+                    <input type="text" required disabled={loading} className="w-full px-5 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:bg-white focus:border-red-300 transition-all font-bold text-slate-700 text-xs" value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-[9px] font-black uppercase text-slate-400 tracking-widest ml-1">CNPJ / CPF do Cliente</label>
+                    <input type="text" required disabled={loading} className="w-full px-5 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:bg-white focus:border-red-300 transition-all font-bold text-slate-700 text-xs" value={formData.cpfCnpj} onChange={(e) => setFormData({ ...formData, cpfCnpj: e.target.value })} />
+                  </div>
                 </div>
               </div>
-              <div className="space-y-1.5">
-                <label className="text-[9px] font-bold uppercase text-slate-400 tracking-widest ml-1">Endereço de Entrega</label>
-                <input required className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:bg-white focus:border-red-300 transition-all font-bold text-slate-700 text-xs" value={formData.address} onChange={(e) => setFormData({ ...formData, address: e.target.value })} />
+
+              <div className="space-y-4">
+                <div className="flex items-center gap-2 border-b border-slate-100 pb-2">
+                   <Lock className="w-4 h-4 text-red-500" />
+                   <span className="text-[10px] font-black uppercase tracking-widest text-slate-800">Credenciais de Acesso</span>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                  <div className="space-y-2">
+                    <label className="text-[9px] font-black uppercase text-slate-400 tracking-widest ml-1">E-mail para Login</label>
+                    <input type="email" required disabled={loading} className="w-full px-5 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:bg-white focus:border-red-300 transition-all font-bold text-slate-700 text-xs" value={formData.email} onChange={(e) => setFormData({ ...formData, email: e.target.value })} />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-[9px] font-black uppercase text-slate-400 tracking-widest ml-1">{editingClient ? 'Redefinir Senha' : 'Senha de Primeiro Acesso'}</label>
+                    <input type="text" required disabled={loading} className="w-full px-5 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:bg-white focus:border-red-300 transition-all font-bold text-slate-700 text-xs" value={formData.password} onChange={(e) => setFormData({ ...formData, password: e.target.value })} />
+                  </div>
+                </div>
               </div>
-              <div className="pt-6 flex gap-3">
-                <button type="button" onClick={() => setShowModal(false)} className="flex-1 py-2.5 bg-slate-100 text-slate-500 font-bold rounded-xl text-[10px] uppercase hover:bg-slate-200 transition-all">Cancelar</button>
-                <button type="submit" disabled={loading} className="flex-[2] bg-red-600 text-white py-2.5 rounded-xl font-bold text-[10px] uppercase tracking-widest shadow-lg hover:bg-red-700 active:scale-95 transition-all flex items-center justify-center gap-2">
-                  {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <>Cadastrar Parceiro <ArrowRight className="w-4 h-4" /></>}
+
+              <div className="space-y-4">
+                <div className="flex items-center gap-2 border-b border-slate-100 pb-2">
+                   <Phone className="w-4 h-4 text-red-500" />
+                   <span className="text-[10px] font-black uppercase tracking-widest text-slate-800">Contato e Logística</span>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  <div className="md:col-span-1 space-y-2">
+                    <label className="text-[9px] font-black uppercase text-slate-400 tracking-widest ml-1">Fone / WhatsApp</label>
+                    <input type="text" disabled={loading} className="w-full px-5 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:bg-white focus:border-red-300 transition-all font-bold text-slate-700 text-xs" value={formData.phone} onChange={(e) => setFormData({ ...formData, phone: e.target.value })} />
+                  </div>
+                  <div className="md:col-span-2 space-y-2">
+                    <label className="text-[9px] font-black uppercase text-slate-400 tracking-widest ml-1">Endereço de Entrega</label>
+                    <input required disabled={loading} className="w-full px-5 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:bg-white focus:border-red-300 transition-all font-bold text-slate-700 text-xs" value={formData.address} onChange={(e) => setFormData({ ...formData, address: e.target.value })} />
+                  </div>
+                </div>
+              </div>
+
+              <div className="pt-8 flex gap-4">
+                <button type="button" onClick={() => resetForm()} className="flex-1 py-4 bg-slate-100 text-slate-500 font-black rounded-2xl text-[10px] uppercase tracking-widest hover:bg-slate-200 transition-all">Descartar</button>
+                <button type="submit" disabled={loading} className="flex-[2] bg-red-600 text-white py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-2xl shadow-red-100 hover:bg-red-700 active:scale-95 transition-all flex items-center justify-center gap-3">
+                  {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : (
+                    <>
+                      {editingClient ? 'Salvar Alterações de Acesso' : 'Finalizar Cadastro'} 
+                      <Check className="w-4 h-4" />
+                    </>
+                  )}
                 </button>
               </div>
             </form>

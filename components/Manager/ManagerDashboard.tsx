@@ -32,7 +32,7 @@ const ManagerDashboard: React.FC<ManagerDashboardProps> = ({
   const menuItems = [
     { id: 'dashboard', label: 'Início', icon: LayoutDashboard },
     { id: 'products', label: 'Itens', icon: Package },
-    { id: 'clients', label: 'PDVs', icon: Users },
+    { id: 'clients', label: 'Clientes', icon: Users },
     { id: 'sellers', label: 'Vendas', icon: Contact },
     { id: 'orders', label: 'Pedidos', icon: ShoppingCart },
     { id: 'admins', label: 'Config', icon: ShieldCheck },
@@ -128,7 +128,7 @@ const ManagerDashboard: React.FC<ManagerDashboardProps> = ({
               <SellerList sellers={sellers} setSellers={setSellers} />
             )}
             {activeTab === 'orders' && (
-              <OrderList orders={orders} setOrders={setOrders} />
+              <OrderList orders={orders} setOrders={setOrders} sellers={sellers} />
             )}
             {activeTab === 'admins' && (
               <AdminManager managers={managers} setManagers={setManagers} currentUser={user} />

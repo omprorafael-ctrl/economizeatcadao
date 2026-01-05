@@ -341,7 +341,7 @@ const Catalog: React.FC<CatalogProps> = ({ products, onAddToCart }) => {
               <div className="px-8 pb-12 space-y-10 relative -mt-12">
                 <div className="space-y-4">
                   <div className="flex flex-wrap items-center gap-3">
-                    <span className="px-4 py-1.5 bg-white text-slate-500 rounded-full text-[10px] font-black uppercase tracking-widest border border-slate-200 shadow-sm">SKU {selectedProduct.code}</span>
+                    <span className="px-4 py-1.5 bg-white text-slate-500 rounded-full text-[10px] font-black uppercase tracking-widest border border-slate-200 shadow-sm">Código {selectedProduct.code}</span>
                     <span className="px-4 py-1.5 bg-red-600 text-white rounded-full text-[10px] font-black uppercase tracking-widest border border-red-600 shadow-xl shadow-red-100">{selectedProduct.group}</span>
                     {favorites.includes(selectedProduct.id) && (
                       <span className="px-4 py-1.5 bg-pink-50 text-pink-600 rounded-full text-[10px] font-black uppercase tracking-widest border border-pink-100 flex items-center gap-2">

@@ -128,7 +128,7 @@ const StatsOverview: React.FC<StatsOverviewProps> = ({ products, clients, orders
         <div className="bg-white border border-slate-200 p-8 rounded-3xl shadow-sm flex flex-col justify-between">
             <div>
               <h3 className="text-sm font-bold text-slate-800 uppercase tracking-wide mb-1">Status de Expansão</h3>
-              <p className="text-[10px] text-slate-400 font-medium mb-8">Meta de ativação de PDVs</p>
+              <p className="text-[10px] text-slate-400 font-medium mb-8">Meta de ativação de Clientes</p>
               
               <div className="text-center py-6">
                 <span className="text-5xl font-black text-slate-900 tracking-tighter">
