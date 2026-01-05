@@ -1,9 +1,14 @@
 
 import { GoogleGenAI, Type } from "@google/genai";
 
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+// Inicialização segura para evitar quebra do app no import
+const getAI = () => {
+  const key = process.env.API_KEY || process.env.GEMINI_API_KEY;
+  return new GoogleGenAI({ apiKey: key || 'dummy_key' });
+};
 
 export const extractProductsFromPdf = async (base64Pdf: string) => {
+  const ai = getAI();
   const response = await ai.models.generateContent({
     model: 'gemini-3-flash-preview',
     contents: {
@@ -53,11 +58,9 @@ export const extractProductsFromPdf = async (base64Pdf: string) => {
   }
 };
 
-/**
- * Busca uma URL de imagem de produto baseada na descrição usando Google Search
- */
 export const searchProductImage = async (productDescription: string): Promise<string | null> => {
   try {
+    const ai = getAI();
     const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
       contents: `Encontre uma URL direta de imagem de alta qualidade para o seguinte produto do Atacadão: "${productDescription}". 
@@ -69,7 +72,6 @@ export const searchProductImage = async (productDescription: string): Promise<st
     });
 
     const url = response.text?.trim();
-    // Filtro básico para garantir que parece uma URL
     if (url && (url.startsWith('http') || url.startsWith('https'))) {
       return url;
     }

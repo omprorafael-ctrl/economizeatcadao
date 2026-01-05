@@ -20,8 +20,8 @@ const App: React.FC = () => {
 
   useEffect(() => {
     const unsubscribeAuth = onAuthStateChanged(auth, async (firebaseUser) => {
-      if (firebaseUser) {
-        try {
+      try {
+        if (firebaseUser) {
           const userDoc = await getDoc(doc(db, 'users', firebaseUser.uid));
           if (userDoc.exists()) {
             const userData = userDoc.data() as User;
@@ -35,14 +35,16 @@ const App: React.FC = () => {
             await signOut(auth);
             setCurrentUser(null);
           }
-        } catch (e) {
-          console.error("Erro ao buscar usuário:", e);
+        } else {
           setCurrentUser(null);
         }
-      } else {
+      } catch (e) {
+        console.error("Critical Auth Error:", e);
         setCurrentUser(null);
+      } finally {
+        // ESSENCIAL: Garante que o loading pare mesmo se houver erro, evitando tela branca
+        setLoading(false);
       }
-      setLoading(false);
     });
 
     return () => unsubscribeAuth();
@@ -52,19 +54,21 @@ const App: React.FC = () => {
     if (!currentUser) return;
 
     const unsubProducts = onSnapshot(collection(db, 'products'), (snapshot) => {
-      setProducts(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Product)));
-    });
+      const prods = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Product));
+      setProducts(prods);
+    }, (err) => console.error("Firestore Products Error:", err));
 
     const unsubOrders = onSnapshot(query(collection(db, 'orders'), orderBy('createdAt', 'desc')), (snapshot) => {
-      setOrders(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Order)));
-    });
+      const ords = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Order));
+      setOrders(ords);
+    }, (err) => console.error("Firestore Orders Error:", err));
 
     const unsubUsers = onSnapshot(collection(db, 'users'), (snapshot) => {
       const allUsers = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as any));
       setClients(allUsers.filter(u => u.role === UserRole.CLIENT) as ClientData[]);
       setManagers(allUsers.filter(u => u.role === UserRole.MANAGER));
       setSellers(allUsers.filter(u => u.role === UserRole.SELLER) as Seller[]);
-    });
+    }, (err) => console.error("Firestore Users Error:", err));
 
     return () => {
       unsubProducts();
@@ -74,7 +78,11 @@ const App: React.FC = () => {
   }, [currentUser]);
 
   const handleLogout = async () => {
-    await signOut(auth);
+    try {
+      await signOut(auth);
+    } catch (e) {
+      console.error("Logout Error:", e);
+    }
   };
 
   if (loading) {
@@ -87,8 +95,8 @@ const App: React.FC = () => {
           </div>
         </div>
         <div className="mt-8 text-center animate-in fade-in slide-in-from-bottom-2 duration-700">
-          <h1 className="text-2xl font-black tracking-tight text-slate-900">ATACADÃO</h1>
-          <p className="text-[9px] font-bold tracking-[0.4em] text-slate-400 mt-2 uppercase">Carregando Ecossistema</p>
+          <h1 className="text-2xl font-black tracking-tight text-slate-900 uppercase">Atacadão</h1>
+          <p className="text-[9px] font-bold tracking-[0.4em] text-slate-400 mt-2 uppercase">Sincronizando Ecossistema</p>
         </div>
       </div>
     );
