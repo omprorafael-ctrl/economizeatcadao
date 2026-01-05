@@ -20,7 +20,8 @@ import {
   Calendar,
   User,
   ChevronDown,
-  Timer
+  Timer,
+  Send
 } from 'lucide-react';
 import { db } from '../../firebaseConfig';
 import { doc, updateDoc } from 'firebase/firestore';
@@ -53,18 +54,18 @@ const OrderList: React.FC<OrderListProps> = ({ orders, sellers }) => {
   };
 
   const statusMap: Record<OrderStatus, { label: string, color: string, icon: any }> = {
-    [OrderStatus.GENERATED]: { label: 'Novo Pedido', color: 'bg-blue-50 text-blue-600 border-blue-100', icon: Clock },
-    [OrderStatus.IN_PROGRESS]: { label: 'Em Separação', color: 'bg-amber-50 text-amber-600 border-amber-100', icon: ClipboardCheck },
+    [OrderStatus.GENERATED]: { label: 'Aguardando Lançamento', color: 'bg-blue-50 text-blue-600 border-blue-100', icon: Clock },
+    [OrderStatus.IN_PROGRESS]: { label: 'Em Lançamento', color: 'bg-amber-50 text-amber-600 border-amber-100', icon: ClipboardCheck },
     [OrderStatus.INVOICED]: { label: 'Faturado', color: 'bg-emerald-50 text-emerald-600 border-emerald-100', icon: CreditCard },
     [OrderStatus.CANCELLED]: { label: 'Cancelado', color: 'bg-red-50 text-red-600 border-red-100', icon: Ban },
-    [OrderStatus.SENT]: { label: 'Enviado', color: 'bg-purple-50 text-purple-600 border-purple-100', icon: Truck },
+    [OrderStatus.SENT]: { label: 'Enviado', color: 'bg-purple-50 text-purple-600 border-purple-100', icon: Send },
     [OrderStatus.FINISHED]: { label: 'Concluído', color: 'bg-slate-100 text-slate-600 border-slate-200', icon: CheckCircle },
   };
 
-  const formatDuration = (start: string, end?: string) => {
-    if (!end) return '---';
+  const formatDuration = (start?: string, end?: string) => {
+    if (!start) return 'Aguardando...';
     const s = new Date(start).getTime();
-    const e = new Date(end).getTime();
+    const e = end ? new Date(end).getTime() : new Date().getTime();
     const diff = Math.abs(e - s);
     
     const mins = Math.floor(diff / 60000);
@@ -73,9 +74,11 @@ const OrderList: React.FC<OrderListProps> = ({ orders, sellers }) => {
     return `${hrs}h ${mins % 60}m`;
   };
 
-  const getSLAColor = (start: string, end?: string) => {
-    if (!end) return 'text-slate-300';
-    const diff = Math.abs(new Date(end).getTime() - new Date(start).getTime());
+  const getSLAColor = (start?: string, end?: string) => {
+    if (!start) return 'text-slate-300';
+    const s = new Date(start).getTime();
+    const e = end ? new Date(end).getTime() : new Date().getTime();
+    const diff = Math.abs(e - s);
     if (diff < 600000) return 'text-emerald-500'; // < 10min
     if (diff < 3600000) return 'text-amber-500'; // < 1h
     return 'text-red-500'; // > 1h
@@ -112,7 +115,7 @@ const OrderList: React.FC<OrderListProps> = ({ orders, sellers }) => {
             </div>
             <div>
               <h3 className="text-base font-black text-slate-800 uppercase tracking-widest leading-none">Gestão de Vendas</h3>
-              <p className="text-[10px] text-slate-400 font-bold uppercase tracking-[0.3em] mt-2">Monitoramento de SLA em Tempo Real</p>
+              <p className="text-[10px] text-slate-400 font-bold uppercase tracking-[0.3em] mt-2">SLA Contabilizado a partir do lançamento</p>
             </div>
           </div>
           
@@ -178,7 +181,7 @@ const OrderList: React.FC<OrderListProps> = ({ orders, sellers }) => {
                 <th className="px-8 py-6">Atendente</th>
                 <th className="px-8 py-6">Valor Total</th>
                 <th className="px-8 py-6">Status</th>
-                <th className="px-8 py-6">Atendimento (SLA)</th>
+                <th className="px-8 py-6">Tempo Atend.</th>
                 <th className="px-8 py-6 text-right">Ações</th>
               </tr>
             </thead>
@@ -187,8 +190,10 @@ const OrderList: React.FC<OrderListProps> = ({ orders, sellers }) => {
                 filteredOrders.map(order => {
                   const status = statusMap[order.status] || statusMap[OrderStatus.GENERATED];
                   const totalItems = calculateTotalItems(order.items);
-                  const atendimento = formatDuration(order.receivedAt || order.createdAt, order.invoicedAt || (order.status === OrderStatus.IN_PROGRESS ? new Date().toISOString() : undefined));
-                  const slaColor = getSLAColor(order.receivedAt || order.createdAt, order.invoicedAt || (order.status === OrderStatus.IN_PROGRESS ? new Date().toISOString() : undefined));
+                  
+                  // SLA: Começa do receivedAt (lançamento do vendedor)
+                  const atendimento = formatDuration(order.receivedAt, order.invoicedAt);
+                  const slaColor = getSLAColor(order.receivedAt, order.invoicedAt);
                   
                   return (
                     <tr key={order.id} className="hover:bg-slate-50/50 transition-all group">
@@ -239,7 +244,9 @@ const OrderList: React.FC<OrderListProps> = ({ orders, sellers }) => {
                              <Timer className="w-3 h-3" />
                              {atendimento}
                            </div>
-                           <p className="text-[8px] font-bold text-slate-300 uppercase mt-1">Tempo Total</p>
+                           <p className="text-[8px] font-bold text-slate-300 uppercase mt-1">
+                             {order.receivedAt ? 'Iniciado' : 'Pendente'}
+                           </p>
                         </div>
                       </td>
                       <td className="px-8 py-6 text-right">
@@ -255,7 +262,7 @@ const OrderList: React.FC<OrderListProps> = ({ orders, sellers }) => {
                 })
               ) : (
                 <tr>
-                  <td colSpan={7} className="py-32 text-center text-slate-400">Nenhum pedido encontrado</td>
+                  <td colSpan={7} className="py-32 text-center text-slate-400 font-bold uppercase text-xs">Nenhum pedido encontrado</td>
                 </tr>
               )}
             </tbody>
@@ -274,16 +281,16 @@ const OrderList: React.FC<OrderListProps> = ({ orders, sellers }) => {
             <div className="flex-1 overflow-y-auto p-8 space-y-6">
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="p-6 bg-slate-100/50 rounded-3xl border border-slate-200">
-                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Criação</p>
+                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Gerado pelo Cliente</p>
                   <p className="text-xs font-black text-slate-800 uppercase">{new Date(selectedOrder.createdAt).toLocaleString()}</p>
                 </div>
                 <div className="p-6 bg-amber-50/50 rounded-3xl border border-amber-100">
-                  <p className="text-[10px] font-black text-amber-600 uppercase tracking-widest mb-1">Recebimento</p>
-                  <p className="text-xs font-black text-amber-800 uppercase">{selectedOrder.receivedAt ? new Date(selectedOrder.receivedAt).toLocaleString() : '---'}</p>
+                  <p className="text-[10px] font-black text-amber-600 uppercase tracking-widest mb-1">Lançado (Mestre Vendedor)</p>
+                  <p className="text-xs font-black text-amber-800 uppercase">{selectedOrder.receivedAt ? new Date(selectedOrder.receivedAt).toLocaleString() : 'Pendente'}</p>
                 </div>
                 <div className="p-6 bg-emerald-50/50 rounded-3xl border border-emerald-100">
-                  <p className="text-[10px] font-black text-emerald-600 uppercase tracking-widest mb-1">Faturamento</p>
-                  <p className="text-xs font-black text-emerald-800 uppercase">{selectedOrder.invoicedAt ? new Date(selectedOrder.invoicedAt).toLocaleString() : '---'}</p>
+                  <p className="text-[10px] font-black text-emerald-600 uppercase tracking-widest mb-1">Finalizado/Faturado</p>
+                  <p className="text-xs font-black text-emerald-800 uppercase">{selectedOrder.invoicedAt ? new Date(selectedOrder.invoicedAt).toLocaleString() : 'Em aberto'}</p>
                 </div>
               </div>
 
