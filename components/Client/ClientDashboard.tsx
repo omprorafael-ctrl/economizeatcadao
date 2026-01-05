@@ -1,7 +1,7 @@
 
 import React, { useState } from 'react';
 import { ClientData, Product, Order, CartItem, OrderStatus, Seller } from '../../types';
-import { ShoppingCart, List, History, User, LogOut, PackageSearch, UserCircle, Bell } from 'lucide-react';
+import { ShoppingCart, List, History, User, LogOut, PackageSearch, UserCircle, Bell, Zap } from 'lucide-react';
 import Catalog from './Catalog';
 import Cart from './Cart';
 import OrderHistory from './OrderHistory';
@@ -20,6 +20,7 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({
 }) => {
   const [activeTab, setActiveTab] = useState<'catalog' | 'cart' | 'history' | 'profile'>('catalog');
   const [cart, setCart] = useState<CartItem[]>([]);
+  const [showNotifications, setShowNotifications] = useState(false);
 
   const addToCart = (product: Product, quantity: number) => {
     setCart(prev => {
@@ -51,6 +52,7 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({
 
   const cartCount = cart.reduce((sum, item) => sum + item.quantity, 0);
   const clientOrders = orders.filter(o => o.clientId === user.id);
+  const promoItems = products.filter(p => p.onSale && p.active);
 
   return (
     <div className="flex flex-col h-screen bg-black max-w-lg mx-auto shadow-[0_0_100px_rgba(220,38,38,0.1)] overflow-hidden relative font-sans text-white border-x border-white/5">
@@ -66,24 +68,74 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({
             <h1 className="text-2xl font-black italic tracking-tighter text-white uppercase">ATACADÃO</h1>
           </div>
           <div className="flex items-center gap-3">
-            <button className="p-3 bg-white/5 text-slate-400 hover:text-white rounded-2xl border border-white/5 transition-all"><Bell className="w-5 h-5" /></button>
+            <button 
+              onClick={() => setShowNotifications(!showNotifications)}
+              className="p-3 bg-white/5 text-slate-400 hover:text-white rounded-2xl border border-white/5 transition-all relative"
+            >
+              <Bell className="w-5 h-5" />
+              {promoItems.length > 0 && (
+                <span className="absolute top-2 right-2 w-2.5 h-2.5 bg-orange-500 rounded-full border-2 border-black animate-pulse" />
+              )}
+            </button>
             <button onClick={onLogout} className="p-3 bg-red-600/10 text-red-500 hover:bg-red-600 hover:text-white rounded-2xl border border-red-500/20 transition-all">
               <LogOut className="w-5 h-5" />
             </button>
           </div>
         </div>
-        <div className="flex items-center gap-5">
-          <div className="w-14 h-14 rounded-[22px] bg-gradient-to-tr from-red-600 to-red-400 p-0.5 shadow-xl shadow-red-900/20">
-            <div className="w-full h-full rounded-[20px] bg-black flex items-center justify-center font-black text-white text-xl border border-white/10">
-              {user.name.charAt(0)}
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-5">
+            <div className="w-14 h-14 rounded-[22px] bg-gradient-to-tr from-red-600 to-red-400 p-0.5 shadow-xl shadow-red-900/20">
+              <div className="w-full h-full rounded-[20px] bg-black flex items-center justify-center font-black text-white text-xl border border-white/10">
+                {user.name.charAt(0)}
+              </div>
+            </div>
+            <div className="min-w-0">
+              <p className="text-[10px] font-black text-red-500 uppercase tracking-[0.3em]">Cliente Gold</p>
+              <p className="font-black text-white truncate uppercase text-lg tracking-tight italic">{user.name}</p>
             </div>
           </div>
-          <div className="min-w-0">
-            <p className="text-[10px] font-black text-red-500 uppercase tracking-[0.3em]">Cliente Gold</p>
-            <p className="font-black text-white truncate uppercase text-lg tracking-tight italic">{user.name}</p>
-          </div>
+          {promoItems.length > 0 && (
+            <div className="bg-orange-600/10 border border-orange-500/20 px-4 py-2 rounded-2xl flex items-center gap-2 animate-bounce">
+              <Zap className="w-4 h-4 text-orange-500 fill-orange-500" />
+              <span className="text-[10px] font-black text-orange-500 uppercase tracking-widest">{promoItems.length} Ofertas</span>
+            </div>
+          )}
         </div>
       </header>
+
+      {/* Dropdown de Notificações */}
+      {showNotifications && (
+        <div className="absolute top-24 right-8 w-64 bg-[#0a0a0a] border border-white/10 rounded-[30px] shadow-2xl z-[60] overflow-hidden animate-in fade-in zoom-in-95 duration-300">
+          <div className="p-5 border-b border-white/5 bg-white/5">
+            <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">Notificações</p>
+          </div>
+          <div className="max-h-60 overflow-y-auto p-2 scrollbar-hide">
+            {promoItems.length > 0 ? (
+              promoItems.map(p => (
+                <button 
+                  key={p.id}
+                  onClick={() => { setActiveTab('catalog'); setShowNotifications(false); }}
+                  className="w-full p-4 hover:bg-white/5 rounded-2xl text-left transition-all border border-transparent hover:border-orange-500/20 group"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 bg-orange-600/10 rounded-lg flex items-center justify-center text-orange-500 group-hover:bg-orange-600 group-hover:text-white transition-all">
+                      <Zap className="w-4 h-4" />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-[9px] font-black text-white uppercase truncate">{p.description}</p>
+                      <p className="text-[8px] font-bold text-orange-500 uppercase mt-0.5 tracking-tighter">Preço especial ativo!</p>
+                    </div>
+                  </div>
+                </button>
+              ))
+            ) : (
+              <div className="p-8 text-center opacity-30">
+                <p className="text-[9px] font-black uppercase tracking-widest">Nenhuma nova oferta</p>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Content Area */}
       <main className="flex-1 overflow-y-auto pb-40 scrollbar-hide relative z-10">

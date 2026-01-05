@@ -16,7 +16,8 @@ import {
   ShieldCheck,
   Truck,
   Box,
-  ChevronDown
+  ChevronDown,
+  Sparkles
 } from 'lucide-react';
 
 interface CatalogProps {
@@ -32,7 +33,7 @@ const Catalog: React.FC<CatalogProps> = ({ products, onAddToCart }) => {
   const [addedItems, setAddedItems] = useState<Record<string, boolean>>({});
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
 
-  const groups = ['Todos', ...Array.from(new Set(products.map(p => p.group)))];
+  const groups = ['Todos', 'Promoções', ...Array.from(new Set(products.map(p => p.group)))];
 
   const handleQtyChange = (id: string, delta: number) => {
     setQuantities(prev => {
@@ -54,23 +55,34 @@ const Catalog: React.FC<CatalogProps> = ({ products, onAddToCart }) => {
 
   const filteredProducts = products.filter(p => {
     const matchesSearch = p.description.toLowerCase().includes(searchTerm.toLowerCase()) || p.code.includes(searchTerm);
-    const matchesGroup = selectedGroup === 'Todos' || p.group === selectedGroup;
+    const matchesGroup = 
+      selectedGroup === 'Todos' ? true : 
+      selectedGroup === 'Promoções' ? p.onSale : 
+      p.group === selectedGroup;
     return matchesSearch && matchesGroup && p.active;
   });
 
-  const getSmartBadges = (desc: string) => {
+  const getSmartBadges = (product: Product) => {
     const badges = [];
-    if (desc.toLowerCase().includes('integral')) badges.push({ text: 'Saudável', color: 'text-emerald-500 bg-emerald-500/10' });
-    if (desc.toLowerCase().includes('extra')) badges.push({ text: 'Premium', color: 'text-amber-500 bg-amber-500/10' });
+    if (product.onSale) badges.push({ text: 'OFERTA', color: 'text-white bg-orange-600 border-orange-500 animate-pulse' });
+    if (product.description.toLowerCase().includes('integral')) badges.push({ text: 'Saudável', color: 'text-emerald-500 bg-emerald-500/10 border-emerald-500/10' });
     
-    const weightMatch = desc.match(/\d+(kg|g|ml|l)/i);
-    if (weightMatch) badges.push({ text: weightMatch[0].toUpperCase(), color: 'text-slate-400 bg-white/5' });
+    const weightMatch = product.description.match(/\d+(kg|g|ml|l)/i);
+    if (weightMatch) badges.push({ text: weightMatch[0].toUpperCase(), color: 'text-slate-400 bg-white/5 border-white/5' });
     
     return badges;
   };
 
   return (
     <div className="flex flex-col animate-in fade-in duration-700 bg-transparent min-h-full pb-20">
+      {/* Banner de Notificação de Promoção */}
+      {products.some(p => p.onSale && p.active) && (
+        <div className="bg-orange-600/20 border-b border-orange-600/30 px-5 py-2 flex items-center justify-center gap-2 overflow-hidden">
+          <Sparkles className="w-3 h-3 text-orange-500 animate-spin-slow" />
+          <p className="text-[9px] font-black text-orange-500 uppercase tracking-[0.3em] whitespace-nowrap">Baixa de preços detectada! Confira as ofertas exclusivas.</p>
+        </div>
+      )}
+
       <div className="bg-black/40 backdrop-blur-3xl sticky top-0 z-20 shadow-sm border-b border-white/5">
         <div className="px-5 pt-5 pb-3 space-y-3">
           <div className="flex items-center gap-3">
@@ -102,9 +114,10 @@ const Catalog: React.FC<CatalogProps> = ({ products, onAddToCart }) => {
                 className={`px-5 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest whitespace-nowrap transition-all border ${
                   selectedGroup === group 
                   ? 'bg-red-600 text-white border-red-600' 
-                  : 'bg-white/5 text-slate-500 border-white/5'
+                  : group === 'Promoções' ? 'bg-orange-600/10 text-orange-500 border-orange-600/30' : 'bg-white/5 text-slate-500 border-white/5'
                 }`}
               >
+                {group === 'Promoções' && <Zap className="w-3 h-3 inline mr-1 fill-orange-500" />}
                 {group}
               </button>
             ))}
@@ -117,11 +130,12 @@ const Catalog: React.FC<CatalogProps> = ({ products, onAddToCart }) => {
           filteredProducts.map(product => {
             const qty = quantities[product.id] || 1;
             const isAdded = addedItems[product.id];
-            const smartBadges = getSmartBadges(product.description);
+            const smartBadges = getSmartBadges(product);
+            const displayPrice = product.onSale && product.salePrice ? product.salePrice : product.price;
 
             if (viewMode === 'grid') {
               return (
-                <div key={product.id} className="bg-white/5 rounded-[28px] border border-white/5 flex flex-col group active:bg-white/10 transition-all duration-300 relative">
+                <div key={product.id} className={`bg-white/5 rounded-[28px] border flex flex-col group active:bg-white/10 transition-all duration-300 relative ${product.onSale ? 'border-orange-500/20 bg-orange-500/[0.02]' : 'border-white/5'}`}>
                   <button 
                     onClick={() => setSelectedProduct(product)}
                     className="absolute top-2 right-2 z-10 p-1.5 bg-black/40 rounded-full text-slate-600"
@@ -144,17 +158,22 @@ const Catalog: React.FC<CatalogProps> = ({ products, onAddToCart }) => {
 
                       <div className="flex flex-wrap gap-1 mt-1.5 h-4 overflow-hidden">
                         {smartBadges.map((b, i) => (
-                          <span key={i} className={`px-1.5 py-0.5 rounded text-[7px] font-black uppercase border border-white/5 ${b.color}`}>
+                          <span key={i} className={`px-1.5 py-0.5 rounded text-[7px] font-black uppercase border ${b.color}`}>
                             {b.text}
                           </span>
                         ))}
                       </div>
                       
-                      <div className="flex items-baseline gap-1 mt-2">
-                        <span className="text-[8px] font-black text-red-500">R$</span>
-                        <p className="text-xl font-black text-white tracking-tighter italic leading-none">
-                          {product.price.toFixed(2).replace('.', ',')}
-                        </p>
+                      <div className="mt-2 min-h-[38px] flex flex-col justify-end">
+                        {product.onSale && (
+                          <p className="text-[9px] text-slate-600 line-through leading-none mb-1">R$ {product.price.toFixed(2).replace('.', ',')}</p>
+                        )}
+                        <div className="flex items-baseline gap-1">
+                          <span className={`text-[8px] font-black ${product.onSale ? 'text-orange-500' : 'text-red-500'}`}>R$</span>
+                          <p className={`text-xl font-black tracking-tighter italic leading-none ${product.onSale ? 'text-orange-500' : 'text-white'}`}>
+                            {displayPrice.toFixed(2).replace('.', ',')}
+                          </p>
+                        </div>
                       </div>
                     </div>
 
@@ -168,7 +187,7 @@ const Catalog: React.FC<CatalogProps> = ({ products, onAddToCart }) => {
                       <button 
                         onClick={() => handleAdd(product)}
                         className={`w-full py-2.5 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all ${
-                          isAdded ? 'bg-emerald-600 text-white' : 'bg-red-600 text-white'
+                          isAdded ? 'bg-emerald-600 text-white' : (product.onSale ? 'bg-orange-600 text-white' : 'bg-red-600 text-white')
                         }`}
                       >
                         {isAdded ? <Check className="w-3.5 h-3.5 mx-auto" /> : 'Confirmar'}
@@ -179,18 +198,21 @@ const Catalog: React.FC<CatalogProps> = ({ products, onAddToCart }) => {
               );
             } else {
               return (
-                <div key={product.id} className="bg-white/5 rounded-[22px] p-3 border border-white/5 flex gap-3 group active:bg-white/10 transition-all">
+                <div key={product.id} className={`rounded-[22px] p-3 border flex gap-3 group active:bg-white/10 transition-all ${product.onSale ? 'bg-orange-500/[0.03] border-orange-500/20' : 'bg-white/5 border-white/5'}`}>
                   <div className="flex-1 min-w-0" onClick={() => setSelectedProduct(product)}>
                     <div className="flex items-center gap-2 mb-1">
-                      <span className="px-1.5 py-0.5 bg-red-600 text-white rounded-md text-[7px] font-black uppercase">SKU {product.code}</span>
+                      <span className={`px-1.5 py-0.5 rounded-md text-[7px] font-black uppercase ${product.onSale ? 'bg-orange-600 text-white' : 'bg-red-600 text-white'}`}>SKU {product.code}</span>
                       <span className="text-[8px] font-black text-slate-600 uppercase truncate">{product.group}</span>
                     </div>
                     <h3 className="text-[11px] font-bold text-white leading-tight uppercase line-clamp-2 tracking-tighter mb-1.5">{product.description}</h3>
                     <div className="flex items-center gap-3">
-                      <p className="text-base font-black text-white italic">
-                        <span className="text-[9px] text-red-500 mr-1 not-italic">R$</span>
-                        {product.price.toFixed(2).replace('.', ',')}
-                      </p>
+                      <div>
+                        {product.onSale && <p className="text-[8px] text-slate-600 line-through leading-none">R$ {product.price.toFixed(2).replace('.', ',')}</p>}
+                        <p className={`text-base font-black italic ${product.onSale ? 'text-orange-500' : 'text-white'}`}>
+                          <span className={`text-[9px] mr-1 not-italic ${product.onSale ? 'text-orange-500' : 'text-red-500'}`}>R$</span>
+                          {displayPrice.toFixed(2).replace('.', ',')}
+                        </p>
+                      </div>
                       {smartBadges.slice(0, 1).map((b, i) => (
                         <span key={i} className={`px-1.5 py-0.5 rounded text-[7px] font-black uppercase ${b.color}`}>
                           {b.text}
@@ -209,7 +231,7 @@ const Catalog: React.FC<CatalogProps> = ({ products, onAddToCart }) => {
                     <button 
                       onClick={() => handleAdd(product)}
                       className={`w-full py-2.5 px-4 rounded-xl text-[8px] font-black uppercase tracking-widest transition-all ${
-                        isAdded ? 'bg-emerald-600 text-white' : 'bg-red-600 text-white'
+                        isAdded ? 'bg-emerald-600 text-white' : (product.onSale ? 'bg-orange-600 text-white' : 'bg-red-600 text-white')
                       }`}
                     >
                       {isAdded ? <Check className="w-3 h-3 mx-auto" /> : 'Add'}
@@ -236,8 +258,8 @@ const Catalog: React.FC<CatalogProps> = ({ products, onAddToCart }) => {
 
             <div className="px-8 pb-4 flex items-center justify-between shrink-0">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-red-600 rounded-xl flex items-center justify-center">
-                  <Box className="w-5 h-5 text-white" />
+                <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${selectedProduct.onSale ? 'bg-orange-600' : 'bg-red-600'}`}>
+                  {selectedProduct.onSale ? <Zap className="w-5 h-5 text-white fill-white" /> : <Box className="w-5 h-5 text-white" />}
                 </div>
                 <h4 className="text-lg font-black text-white uppercase italic tracking-tighter">Ficha do Produto</h4>
               </div>
@@ -252,24 +274,30 @@ const Catalog: React.FC<CatalogProps> = ({ products, onAddToCart }) => {
             <div className="flex-1 overflow-y-auto px-8 pb-10 scrollbar-hide space-y-6">
               <div className="space-y-3">
                 <div className="flex flex-wrap gap-2">
-                   <span className="px-3 py-1 bg-red-600 text-white rounded-lg text-[9px] font-black uppercase tracking-widest">SKU {selectedProduct.code}</span>
+                   <span className={`px-3 py-1 text-white rounded-lg text-[9px] font-black uppercase tracking-widest ${selectedProduct.onSale ? 'bg-orange-600' : 'bg-red-600'}`}>SKU {selectedProduct.code}</span>
                    <span className="px-3 py-1 bg-white/5 border border-white/5 text-slate-400 rounded-lg text-[9px] font-black uppercase tracking-widest">{selectedProduct.group}</span>
+                   {selectedProduct.onSale && (
+                     <span className="px-3 py-1 bg-white/5 border border-orange-500/30 text-orange-500 rounded-lg text-[9px] font-black uppercase tracking-widest animate-pulse">PROMOÇÃO ATIVA</span>
+                   )}
                 </div>
                 <h2 className="text-2xl font-black text-white leading-[1.1] italic uppercase tracking-tighter">{selectedProduct.description}</h2>
               </div>
 
               <div className="grid grid-cols-2 gap-3">
-                <div className="bg-white/5 p-5 rounded-[28px] border border-white/5">
-                  <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest mb-1">Preço Atual</p>
-                  <p className="text-2xl font-black text-white italic">
-                    <span className="text-[10px] text-red-500 mr-1 not-italic">R$</span>
-                    {selectedProduct.price.toFixed(2).replace('.', ',')}
-                  </p>
+                <div className={`p-5 rounded-[28px] border ${selectedProduct.onSale ? 'bg-orange-600/10 border-orange-500/20' : 'bg-white/5 border-white/5'}`}>
+                  <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest mb-1">Valor Unitário</p>
+                  <div className="flex flex-col">
+                    {selectedProduct.onSale && <span className="text-[9px] text-slate-600 line-through">R$ {selectedProduct.price.toFixed(2).replace('.', ',')}</span>}
+                    <p className={`text-2xl font-black italic ${selectedProduct.onSale ? 'text-orange-500' : 'text-white'}`}>
+                      <span className={`text-[10px] mr-1 not-italic ${selectedProduct.onSale ? 'text-orange-500' : 'text-red-500'}`}>R$</span>
+                      {(selectedProduct.onSale && selectedProduct.salePrice ? selectedProduct.salePrice : selectedProduct.price).toFixed(2).replace('.', ',')}
+                    </p>
+                  </div>
                 </div>
                 <div className="bg-white/5 p-5 rounded-[28px] border border-white/5 flex flex-col justify-center">
                   <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest mb-1">Logística</p>
                   <div className="flex items-center gap-1.5 text-emerald-500 font-black text-[10px] uppercase italic">
-                    <Truck className="w-3 h-3" /> Disponível
+                    <Truck className="w-3 h-3" /> Pronta Entrega
                   </div>
                 </div>
               </div>
@@ -277,14 +305,14 @@ const Catalog: React.FC<CatalogProps> = ({ products, onAddToCart }) => {
               <div className="space-y-4">
                 <p className="text-[9px] font-black text-slate-500 uppercase tracking-[0.2em] border-b border-white/5 pb-2">Especificações</p>
                 <div className="grid grid-cols-1 gap-4">
-                  <DetailItem icon={ShieldCheck} label="Qualidade" value="Procedência Atacadão" />
+                  <DetailItem icon={ShieldCheck} label="Controle" value="Qualidade Assegurada" />
                   <DetailItem icon={Box} label="Categoria" value={selectedProduct.group} />
                 </div>
               </div>
 
               <div className="bg-white/5 p-6 rounded-[30px] border border-white/5">
                 <p className="text-[10px] text-slate-400 font-medium leading-relaxed uppercase tracking-tight italic">
-                  As descrições detalhadas ajudam na conferência de pedidos em massa. Certifique-se do SKU correto antes de finalizar.
+                  Este produto faz parte do catálogo premium. Itens em promoção possuem limite de estoque por CNPJ.
                 </p>
               </div>
             </div>
@@ -297,7 +325,7 @@ const Catalog: React.FC<CatalogProps> = ({ products, onAddToCart }) => {
               </div>
               <button 
                 onClick={() => { handleAdd(selectedProduct); setSelectedProduct(null); }}
-                className="px-10 py-4 bg-red-600 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest flex items-center gap-3"
+                className={`px-10 py-4 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest flex items-center gap-3 transition-all ${selectedProduct.onSale ? 'bg-orange-600 hover:bg-orange-500' : 'bg-red-600 hover:bg-red-500'}`}
               >
                 <ShoppingCart className="w-4 h-4" /> Add ao Carrinho
               </button>

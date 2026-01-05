@@ -1,7 +1,7 @@
 
 import React, { useState } from 'react';
 import { Product } from '../../types';
-import { Edit2, Trash2, Search, Plus, Power, Package, FileSearch, X, Tag, Loader2, DollarSign, Layers, AlignLeft } from 'lucide-react';
+import { Edit2, Trash2, Search, Plus, Power, Package, FileSearch, X, Tag, Loader2, DollarSign, Layers, AlignLeft, Zap } from 'lucide-react';
 import PdfImport from './PdfImport';
 import { db } from '../../firebaseConfig';
 import { collection, addDoc, doc, deleteDoc, updateDoc } from 'firebase/firestore';
@@ -21,7 +21,9 @@ const ProductList: React.FC<ProductListProps> = ({ products }) => {
     code: '',
     description: '',
     group: '',
-    price: ''
+    price: '',
+    onSale: false,
+    salePrice: ''
   });
 
   const handleAddProduct = async (e: React.FormEvent) => {
@@ -34,13 +36,15 @@ const ProductList: React.FC<ProductListProps> = ({ products }) => {
         description: formData.description.trim(),
         group: formData.group.trim(),
         price: parseFloat(formData.price.replace(',', '.')),
+        onSale: formData.onSale,
+        salePrice: formData.onSale ? parseFloat(formData.salePrice.replace(',', '.')) : null,
         imageUrl: `https://picsum.photos/400/400?random=${Math.floor(Math.random() * 1000)}`,
         active: true,
         createdAt: new Date().toISOString()
       };
 
       await addDoc(collection(db, 'products'), productData);
-      setFormData({ code: '', description: '', group: '', price: '' });
+      setFormData({ code: '', description: '', group: '', price: '', onSale: false, salePrice: '' });
       setShowAddModal(false);
     } catch (error) {
       console.error("Erro ao adicionar produto:", error);
@@ -55,6 +59,17 @@ const ProductList: React.FC<ProductListProps> = ({ products }) => {
       await updateDoc(doc(db, 'products', id), { active: !currentStatus });
     } catch (error) {
       console.error("Erro ao atualizar status:", error);
+    }
+  };
+
+  const toggleSale = async (id: string, currentOnSale: boolean, currentPrice: number) => {
+    try {
+      await updateDoc(doc(db, 'products', id), { 
+        onSale: !currentOnSale,
+        salePrice: !currentOnSale ? currentPrice * 0.9 : null // Sugere 10% de desconto inicial ao ativar
+      });
+    } catch (error) {
+      console.error("Erro ao alternar promoção:", error);
     }
   };
 
@@ -123,7 +138,12 @@ const ProductList: React.FC<ProductListProps> = ({ products }) => {
                         <Tag className="w-6 h-6" />
                       </div>
                       <div className="max-w-md">
-                        <p className="font-black text-white text-sm leading-tight uppercase tracking-wide group-hover:text-red-400 transition-colors line-clamp-1">{product.description}</p>
+                        <div className="flex items-center gap-2">
+                          <p className="font-black text-white text-sm leading-tight uppercase tracking-wide group-hover:text-red-400 transition-colors line-clamp-1">{product.description}</p>
+                          {product.onSale && (
+                            <span className="px-2 py-0.5 bg-orange-600 text-white text-[8px] font-black rounded uppercase italic tracking-tighter animate-pulse">PROMO</span>
+                          )}
+                        </div>
                         <p className="text-[10px] font-black text-slate-500 mt-2 uppercase tracking-[0.2em]">SKU: {product.code}</p>
                       </div>
                     </div>
@@ -131,22 +151,48 @@ const ProductList: React.FC<ProductListProps> = ({ products }) => {
                   <td className="px-10 py-8">
                     <span className="px-4 py-1.5 bg-red-600/10 text-red-500 rounded-xl text-[9px] font-black uppercase tracking-widest border border-red-500/20">{product.group}</span>
                   </td>
-                  <td className="px-10 py-8 font-black text-white text-base italic">
-                    <span className="text-[10px] text-red-500 mr-2 not-italic">R$</span>
-                    {product.price.toFixed(2).replace('.', ',')}
+                  <td className="px-10 py-8">
+                    {product.onSale ? (
+                      <div>
+                        <p className="text-[10px] text-slate-600 line-through">R$ {product.price.toFixed(2).replace('.', ',')}</p>
+                        <p className="font-black text-orange-500 text-base italic">
+                          <span className="text-[10px] mr-1 not-italic">R$</span>
+                          {product.salePrice?.toFixed(2).replace('.', ',')}
+                        </p>
+                      </div>
+                    ) : (
+                      <p className="font-black text-white text-base italic">
+                        <span className="text-[10px] text-red-500 mr-2 not-italic">R$</span>
+                        {product.price.toFixed(2).replace('.', ',')}
+                      </p>
+                    )}
                   </td>
                   <td className="px-10 py-8 text-center">
-                    <button 
-                      onClick={() => toggleStatus(product.id, product.active)}
-                      className={`inline-flex items-center px-5 py-2 rounded-2xl text-[9px] font-black uppercase tracking-[0.2em] transition-all ${
-                        product.active 
-                        ? 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/30' 
-                        : 'bg-red-500/10 text-red-500 border border-red-500/30'
-                      }`}
-                    >
-                      <div className={`w-2 h-2 rounded-full mr-2 ${product.active ? 'bg-emerald-500 animate-pulse' : 'bg-red-500'}`} />
-                      {product.active ? 'Disponível' : 'Bloqueado'}
-                    </button>
+                    <div className="flex flex-col gap-2 items-center">
+                      <button 
+                        onClick={() => toggleStatus(product.id, product.active)}
+                        className={`inline-flex items-center px-5 py-2 rounded-2xl text-[9px] font-black uppercase tracking-[0.2em] transition-all ${
+                          product.active 
+                          ? 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/30' 
+                          : 'bg-red-500/10 text-red-500 border border-red-500/30'
+                        }`}
+                      >
+                        <div className={`w-2 h-2 rounded-full mr-2 ${product.active ? 'bg-emerald-500 animate-pulse' : 'bg-red-500'}`} />
+                        {product.active ? 'Disponível' : 'Bloqueado'}
+                      </button>
+                      
+                      <button 
+                        onClick={() => toggleSale(product.id, !!product.onSale, product.price)}
+                        className={`inline-flex items-center px-4 py-1.5 rounded-xl text-[8px] font-black uppercase tracking-[0.2em] transition-all ${
+                          product.onSale 
+                          ? 'bg-orange-600/20 text-orange-600 border border-orange-600/30' 
+                          : 'bg-white/5 text-slate-500 border border-white/10'
+                        }`}
+                      >
+                        <Zap className={`w-3 h-3 mr-1.5 ${product.onSale ? 'fill-orange-600' : ''}`} />
+                        {product.onSale ? 'Em Oferta' : 'Fazer Promo'}
+                      </button>
+                    </div>
                   </td>
                   <td className="px-10 py-8 text-right">
                     <div className="flex justify-end gap-3 opacity-40 group-hover:opacity-100 transition-opacity">
@@ -251,19 +297,35 @@ const ProductList: React.FC<ProductListProps> = ({ products }) => {
                 </div>
               </div>
 
-              <div className="space-y-2">
-                <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.3em] ml-2">Preço de Venda Unit.</label>
-                <div className="relative">
-                  <DollarSign className="absolute left-6 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-600" />
-                  <input
-                    type="text"
-                    required
-                    disabled={loading}
-                    className="w-full pl-14 pr-6 py-5 bg-white/5 border border-white/5 rounded-3xl outline-none focus:ring-4 focus:ring-red-500/10 focus:bg-white/10 focus:border-red-500/40 transition-all font-bold text-white text-sm"
-                    placeholder="0,00"
-                    value={formData.price}
-                    onChange={(e) => setFormData({ ...formData, price: e.target.value })}
-                  />
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.3em] ml-2">Preço Base</label>
+                  <div className="relative">
+                    <DollarSign className="absolute left-6 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-600" />
+                    <input
+                      type="text"
+                      required
+                      disabled={loading}
+                      className="w-full pl-14 pr-6 py-5 bg-white/5 border border-white/5 rounded-3xl outline-none focus:ring-4 focus:ring-red-500/10 focus:bg-white/10 focus:border-red-500/40 transition-all font-bold text-white text-sm"
+                      placeholder="0,00"
+                      value={formData.price}
+                      onChange={(e) => setFormData({ ...formData, price: e.target.value })}
+                    />
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.3em] ml-2">Preço Promo (Opcional)</label>
+                  <div className="relative">
+                    <Zap className="absolute left-6 top-1/2 -translate-y-1/2 w-4 h-4 text-orange-500" />
+                    <input
+                      type="text"
+                      disabled={loading}
+                      className="w-full pl-14 pr-6 py-5 bg-white/5 border border-white/5 rounded-3xl outline-none focus:ring-4 focus:ring-orange-500/10 focus:bg-white/10 focus:border-orange-500/40 transition-all font-bold text-white text-sm"
+                      placeholder="0,00"
+                      value={formData.salePrice}
+                      onChange={(e) => setFormData({ ...formData, salePrice: e.target.value, onSale: e.target.value !== '' })}
+                    />
+                  </div>
                 </div>
               </div>
 

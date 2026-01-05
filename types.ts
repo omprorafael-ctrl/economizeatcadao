@@ -35,6 +35,9 @@ export interface Product {
   price: number;
   imageUrl: string;
   active: boolean;
+  onSale?: boolean;
+  salePrice?: number;
+  createdAt: string;
 }
 
 export enum OrderStatus {

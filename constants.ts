@@ -2,11 +2,12 @@
 import { UserRole, Product, ClientData, Order, OrderStatus } from './types';
 
 export const initialProducts: Product[] = [
-  { id: '1', code: '1001', description: 'Arroz Integral 5kg', group: 'Grãos', price: 25.90, imageUrl: 'https://picsum.photos/200/200?random=1', active: true },
-  { id: '2', code: '1002', description: 'Feijão Carioca 1kg', group: 'Grãos', price: 8.50, imageUrl: 'https://picsum.photos/200/200?random=2', active: true },
-  { id: '3', code: '1003', description: 'Azeite de Oliva Extra Virgem', group: 'Mercearia', price: 32.00, imageUrl: 'https://picsum.photos/200/200?random=3', active: true },
-  { id: '4', code: '1004', description: 'Detergente Líquido 500ml', group: 'Limpeza', price: 2.50, imageUrl: 'https://picsum.photos/200/200?random=4', active: true },
-  { id: '5', code: '1005', description: 'Sabão em Pó 1kg', group: 'Limpeza', price: 12.90, imageUrl: 'https://picsum.photos/200/200?random=5', active: true },
+  // Fixed: Added missing 'createdAt' property to comply with Product interface
+  { id: '1', code: '1001', description: 'Arroz Integral 5kg', group: 'Grãos', price: 25.90, imageUrl: 'https://picsum.photos/200/200?random=1', active: true, createdAt: new Date().toISOString() },
+  { id: '2', code: '1002', description: 'Feijão Carioca 1kg', group: 'Grãos', price: 8.50, imageUrl: 'https://picsum.photos/200/200?random=2', active: true, createdAt: new Date().toISOString() },
+  { id: '3', code: '1003', description: 'Azeite de Oliva Extra Virgem', group: 'Mercearia', price: 32.00, imageUrl: 'https://picsum.photos/200/200?random=3', active: true, createdAt: new Date().toISOString() },
+  { id: '4', code: '1004', description: 'Detergente Líquido 500ml', group: 'Limpeza', price: 2.50, imageUrl: 'https://picsum.photos/200/200?random=4', active: true, createdAt: new Date().toISOString() },
+  { id: '5', code: '1005', description: 'Sabão em Pó 1kg', group: 'Limpeza', price: 12.90, imageUrl: 'https://picsum.photos/200/200?random=5', active: true, createdAt: new Date().toISOString() },
 ];
 
 export const initialClients: ClientData[] = [

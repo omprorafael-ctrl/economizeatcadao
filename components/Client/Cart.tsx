@@ -1,7 +1,7 @@
 
 import React, { useState } from 'react';
 import { CartItem, ClientData, Order, OrderStatus, Seller } from '../../types';
-import { Trash2, Plus, Minus, ShoppingBag, Tag, Download, Loader2, Sparkles, MessageSquare, ArrowRight, UserCheck, CheckCircle2, AlertTriangle } from 'lucide-react';
+import { Trash2, Plus, Minus, ShoppingBag, Tag, Download, Loader2, Sparkles, MessageSquare, ArrowRight, UserCheck, CheckCircle2, AlertTriangle, Share2 } from 'lucide-react';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { db } from '../../firebaseConfig';
@@ -24,83 +24,98 @@ const Cart: React.FC<CartProps> = ({ cart, user, sellers, updateQuantity, remove
   
   const total = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
 
-  const generatePDF = (order: Order) => {
+  const getPDFDocument = (order: Order) => {
+    const doc = new jsPDF();
+    
+    // Cabeçalho Vermelho Atacadão
+    doc.setFillColor(220, 38, 38); 
+    doc.rect(0, 0, 210, 45, 'F');
+    
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(30);
+    doc.setFont('helvetica', 'bold');
+    doc.text('ATACADÃO', 20, 25);
+    
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'normal');
+    doc.text('PORTAL DE LOGÍSTICA B2B', 20, 35);
+    
+    doc.text(`PEDIDO: ${order.id}`, 140, 20);
+    doc.text(`DATA: ${new Date().toLocaleString('pt-BR')}`, 140, 28);
+
+    // Dados do Cliente
+    doc.setTextColor(50, 50, 50);
+    doc.setFontSize(12);
+    doc.setFont('helvetica', 'bold');
+    doc.text('DADOS DO FATURAMENTO', 20, 60);
+    
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(10);
+    doc.text(`Razão Social: ${user.name}`, 20, 68);
+    doc.text(`CNPJ/CPF: ${user.cpfCnpj || 'Não Informado'}`, 20, 74);
+    doc.text(`Telefone: ${user.phone || 'Não Informado'}`, 20, 80);
+    doc.text(`Endereço: ${user.address || 'Não Informado'}`, 20, 86);
+
+    // Tabela de Itens
+    const tableData = order.items.map(item => [
+      `#${item.productId.slice(0, 5)}`,
+      item.description.toUpperCase(),
+      item.quantity.toString(),
+      `R$ ${item.unitPrice.toFixed(2).replace('.', ',')}`,
+      `R$ ${item.subtotal.toFixed(2).replace('.', ',')}`
+    ]);
+
+    autoTable(doc, {
+      startY: 95,
+      head: [['CÓDIGO', 'DESCRIÇÃO DO PRODUTO', 'QTD', 'VALOR UN.', 'SUBTOTAL']],
+      body: tableData,
+      theme: 'grid',
+      headStyles: { fillColor: [220, 38, 38], fontSize: 10, halign: 'center' },
+      styles: { fontSize: 8, cellPadding: 3 },
+      columnStyles: {
+        0: { cellWidth: 25, halign: 'center' },
+        1: { cellWidth: 'auto' },
+        2: { cellWidth: 20, halign: 'center' },
+        3: { cellWidth: 30, halign: 'right' },
+        4: { cellWidth: 30, halign: 'right' },
+      }
+    });
+
+    const finalY = (doc as any).lastAutoTable.finalY + 15;
+    
+    // Rodapé de Totais
+    doc.setFillColor(248, 250, 252);
+    doc.rect(130, finalY - 8, 60, 25, 'F');
+    
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(14);
+    doc.setTextColor(220, 38, 38);
+    doc.text(`VALOR TOTAL:`, 135, finalY);
+    doc.text(`R$ ${order.total.toFixed(2).replace('.', ',')}`, 135, finalY + 10);
+
+    return doc;
+  };
+
+  const handleSharePDF = async (order: Order) => {
     try {
-      setPdfError(null);
-      const doc = new jsPDF();
-      
-      // Cabeçalho Vermelho Atacadão
-      doc.setFillColor(220, 38, 38); 
-      doc.rect(0, 0, 210, 45, 'F');
-      
-      doc.setTextColor(255, 255, 255);
-      doc.setFontSize(30);
-      doc.setFont('helvetica', 'bold');
-      doc.text('ATACADÃO', 20, 25);
-      
-      doc.setFontSize(10);
-      doc.setFont('helvetica', 'normal');
-      doc.text('PORTAL DE LOGÍSTICA B2B', 20, 35);
-      
-      doc.text(`PEDIDO: ${order.id}`, 140, 20);
-      doc.text(`DATA: ${new Date().toLocaleString('pt-BR')}`, 140, 28);
+      const doc = getPDFDocument(order);
+      const pdfBlob = doc.output('blob');
+      const file = new File([pdfBlob], `Pedido_${order.id}_Atacadao.pdf`, { type: 'application/pdf' });
 
-      // Dados do Cliente
-      doc.setTextColor(50, 50, 50);
-      doc.setFontSize(12);
-      doc.setFont('helvetica', 'bold');
-      doc.text('DADOS DO FATURAMENTO', 20, 60);
-      
-      doc.setFont('helvetica', 'normal');
-      doc.setFontSize(10);
-      doc.text(`Razão Social: ${user.name}`, 20, 68);
-      doc.text(`CNPJ/CPF: ${user.cpfCnpj || 'Não Informado'}`, 20, 74);
-      doc.text(`Telefone: ${user.phone || 'Não Informado'}`, 20, 80);
-      doc.text(`Endereço: ${user.address || 'Não Informado'}`, 20, 86);
-
-      // Tabela de Itens
-      const tableData = order.items.map(item => [
-        `#${item.productId.slice(0, 5)}`,
-        item.description.toUpperCase(),
-        item.quantity.toString(),
-        `R$ ${item.unitPrice.toFixed(2).replace('.', ',')}`,
-        `R$ ${item.subtotal.toFixed(2).replace('.', ',')}`
-      ]);
-
-      autoTable(doc, {
-        startY: 95,
-        head: [['CÓDIGO', 'DESCRIÇÃO DO PRODUTO', 'QTD', 'VALOR UN.', 'SUBTOTAL']],
-        body: tableData,
-        theme: 'grid',
-        headStyles: { fillColor: [220, 38, 38], fontSize: 10, halign: 'center' },
-        styles: { fontSize: 8, cellPadding: 3 },
-        columnStyles: {
-          0: { cellWidth: 25, halign: 'center' },
-          1: { cellWidth: 'auto' },
-          2: { cellWidth: 20, halign: 'center' },
-          3: { cellWidth: 30, halign: 'right' },
-          4: { cellWidth: 30, halign: 'right' },
-        }
-      });
-
-      const finalY = (doc as any).lastAutoTable.finalY + 15;
-      
-      // Rodapé de Totais
-      doc.setFillColor(248, 250, 252);
-      doc.rect(130, finalY - 8, 60, 25, 'F');
-      
-      doc.setFont('helvetica', 'bold');
-      doc.setFontSize(14);
-      doc.setTextColor(220, 38, 38);
-      doc.text(`VALOR TOTAL:`, 135, finalY);
-      doc.text(`R$ ${order.total.toFixed(2).replace('.', ',')}`, 135, finalY + 10);
-
-      // Salva o arquivo
-      doc.save(`Pedido_${order.id}_Atacadao.pdf`);
-      console.log("PDF Gerado com sucesso!");
-    } catch (err: any) {
-      console.error("Erro crítico ao gerar PDF:", err);
-      setPdfError("Falha técnica ao processar o arquivo PDF. Tente novamente.");
+      if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
+        await navigator.share({
+          files: [file],
+          title: `Pedido Atacadão #${order.id}`,
+          text: `Segue o PDF do pedido #${order.id} gerado no portal.`
+        });
+      } else {
+        // Fallback: Apenas baixa o arquivo se o compartilhamento não estiver disponível
+        doc.save(`Pedido_${order.id}_Atacadao.pdf`);
+        alert("Seu navegador não suporta compartilhamento direto de arquivos. O PDF foi baixado automaticamente.");
+      }
+    } catch (err) {
+      console.error("Erro ao compartilhar PDF:", err);
+      setPdfError("Não foi possível compartilhar o arquivo. Tente baixar o PDF.");
     }
   };
 
@@ -128,21 +143,22 @@ const Cart: React.FC<CartProps> = ({ cart, user, sellers, updateQuantity, remove
           productId: item.id,
           description: item.description,
           quantity: item.quantity,
-          unitPrice: item.price,
-          subtotal: item.price * item.quantity
+          unitPrice: (item.onSale && item.salePrice) ? item.salePrice : item.price,
+          subtotal: ((item.onSale && item.salePrice) ? item.salePrice : item.price) * item.quantity
         }))
       };
 
       // Grava no banco
       await addDoc(collection(db, 'orders'), newOrder);
       
-      // Dispara a geração do PDF
-      generatePDF(newOrder);
-      
       setLastOrder(newOrder);
+      
+      // Tenta compartilhar imediatamente ou baixa
+      await handleSharePDF(newOrder);
+      
     } catch (err: any) {
       console.error("Erro ao salvar pedido:", err);
-      alert("Erro de conexão. Verifique sua internet e tente novamente.");
+      alert("Erro de conexão ao gerar pedido.");
     } finally {
       setIsGenerating(false);
     }
@@ -157,7 +173,7 @@ const Cart: React.FC<CartProps> = ({ cart, user, sellers, updateQuantity, remove
       `Sou o cliente *${user.name}*.\n\n` +
       `Acabei de gerar o pedido *#${lastOrder.id}* no portal.\n` +
       `*Total:* R$ ${lastOrder.total.toFixed(2).replace('.', ',')}\n\n` +
-      `_Vou te enviar o PDF logo abaixo para conferência._`
+      `_O PDF do pedido já foi gerado._`
     );
     
     window.open(`https://wa.me/${selectedSeller.phone}?text=${message}`, '_blank');
@@ -242,7 +258,7 @@ const Cart: React.FC<CartProps> = ({ cart, user, sellers, updateQuantity, remove
               <div className="flex-1 min-w-0">
                 <h3 className="font-bold text-sm text-white uppercase truncate pr-4 tracking-wide">{item.description}</h3>
                 <div className="flex items-center justify-between mt-3">
-                  <p className="text-base font-black text-white italic">R$ {item.price.toFixed(2).replace('.', ',')}</p>
+                  <p className="text-base font-black text-white italic">R$ {((item.onSale && item.salePrice) ? item.salePrice : item.price).toFixed(2).replace('.', ',')}</p>
                   <div className="flex items-center bg-black/40 rounded-2xl p-1 border border-white/5">
                     <button onClick={() => updateQuantity(item.id, -1)} className="w-8 h-8 flex items-center justify-center text-slate-500 hover:text-red-500"><Minus className="w-4 h-4" /></button>
                     <span className="w-10 text-center font-black text-sm text-white">{item.quantity}</span>
@@ -280,32 +296,42 @@ const Cart: React.FC<CartProps> = ({ cart, user, sellers, updateQuantity, remove
               {isGenerating ? <Loader2 className="w-6 h-6 animate-spin" /> : (
                 <>
                   <Download className="w-5 h-5" />
-                  Finalizar e Baixar PDF
+                  Finalizar e Gerar PDF
                 </>
               )}
             </button>
           </div>
         ) : (
-          <div className="space-y-6 animate-in zoom-in-95 duration-500">
+          <div className="space-y-4 animate-in zoom-in-95 duration-500">
             <div className="text-center">
-              <div className="inline-flex items-center justify-center w-16 h-16 bg-emerald-500/20 text-emerald-500 rounded-full mb-4">
-                <CheckCircle2 className="w-10 h-10" />
+              <div className="inline-flex items-center justify-center w-12 h-12 bg-emerald-500/20 text-emerald-500 rounded-full mb-3">
+                <CheckCircle2 className="w-7 h-7" />
               </div>
-              <h3 className="text-xl font-black text-white uppercase tracking-tighter italic">Pedido #{lastOrder.id} Gerado!</h3>
-              <p className="text-[10px] text-slate-500 font-bold uppercase tracking-[0.2em] mt-2">PDF baixado. Agora envie para a vendedora:</p>
+              <h3 className="text-xl font-black text-white uppercase tracking-tighter italic leading-none">Pedido #{lastOrder.id} Sucesso!</h3>
+              <p className="text-[9px] text-slate-500 font-bold uppercase tracking-[0.2em] mt-2">Compartilhe o PDF oficial abaixo:</p>
             </div>
+            
+            <button 
+              onClick={() => handleSharePDF(lastOrder)}
+              className="w-full flex items-center justify-center gap-4 py-5 bg-blue-600 hover:bg-blue-500 text-white rounded-[25px] font-black text-xs uppercase tracking-[0.3em] shadow-[0_15px_30px_rgba(37,99,235,0.3)] transition-all active:scale-95"
+            >
+              <Share2 className="w-5 h-5" />
+              Compartilhar PDF (Anexo)
+            </button>
+
             <button 
               onClick={shareToWhatsApp}
-              className="w-full flex items-center justify-center gap-4 py-6 bg-emerald-600 hover:bg-emerald-500 text-white rounded-[30px] font-black text-xs uppercase tracking-[0.3em] shadow-[0_15px_40px_rgba(16,185,129,0.3)] transition-all active:scale-95"
+              className="w-full flex items-center justify-center gap-4 py-5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-[25px] font-black text-xs uppercase tracking-[0.3em] shadow-[0_15px_30px_rgba(16,185,129,0.3)] transition-all active:scale-95"
             >
-              <MessageSquare className="w-6 h-6 fill-white/20" />
-              Enviar via WhatsApp <ArrowRight className="w-5 h-5" />
+              <MessageSquare className="w-5 h-5" />
+              Avisar via WhatsApp
             </button>
+            
             <button 
-              onClick={() => generatePDF(lastOrder)}
-              className="w-full py-4 border border-white/10 bg-white/5 text-slate-400 rounded-2xl text-[9px] font-black uppercase tracking-widest hover:bg-white/10 transition-all"
+              onClick={() => getPDFDocument(lastOrder).save(`Pedido_${lastOrder.id}_Atacadao.pdf`)}
+              className="w-full py-3 border border-white/10 bg-white/5 text-slate-400 rounded-2xl text-[8px] font-black uppercase tracking-widest hover:bg-white/10 transition-all"
             >
-              Baixar PDF Novamente
+              Baixar Cópia Local
             </button>
           </div>
         )}
