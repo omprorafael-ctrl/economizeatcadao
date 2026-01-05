@@ -15,10 +15,12 @@ interface ClientDashboardProps {
   onLogout: () => void;
 }
 
+type TabType = 'catalog' | 'cart' | 'history' | 'profile';
+
 const ClientDashboard: React.FC<ClientDashboardProps> = ({ 
   user, products, orders, sellers, setOrders, onLogout 
 }) => {
-  const [activeTab, setActiveTab] = useState<'catalog' | 'cart' | 'history' | 'profile'>('catalog');
+  const [activeTab, setActiveTab] = useState<TabType>('catalog');
   const [cart, setCart] = useState<CartItem[]>([]);
   const [showNotifications, setShowNotifications] = useState(false);
   const [showSideMenu, setShowSideMenu] = useState(false);
@@ -29,10 +31,7 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({
   const [isIos, setIsIos] = useState(false);
 
   useEffect(() => {
-    // Detecta se já está no modo standalone
     const isStandalone = window.matchMedia('(display-mode: standalone)').matches || (window.navigator as any).standalone;
-    
-    // Detecta iOS
     const isIosDevice = /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as any).MSStream;
     setIsIos(isIosDevice);
 
@@ -43,7 +42,6 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({
         setShowInstallBanner(true);
       });
 
-      // No iOS o evento acima não existe, mostramos o banner se não for standalone
       if (isIosDevice) {
         setShowInstallBanner(true);
       }
@@ -108,7 +106,7 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({
       {/* Banner de Instalação PWA */}
       {showInstallBanner && (
         <div className="fixed top-0 inset-x-0 z-[60] animate-in slide-in-from-top duration-500">
-           <div className="bg-slate-900 text-white p-4 flex items-center justify-between border-b border-red-600">
+           <div className="bg-slate-900 text-white p-4 flex items-center justify-between border-b border-red-600 shadow-xl">
               <div className="flex items-center gap-3">
                  <div className="w-10 h-10 bg-red-600 flex items-center justify-center rounded-none shrink-0">
                     <Download className="w-5 h-5" />
@@ -269,7 +267,7 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({
         )}
       </main>
 
-      {/* Navigation Buttons for Non-Immersive Modes */}
+      {/* Mobile Navigation Bar */}
       {!isImmersive && (
         <div className="md:hidden fixed bottom-6 left-1/2 -translate-x-1/2 w-[90%] max-w-[400px] bg-white border border-slate-100 rounded-none flex items-center justify-around py-3 px-2 shadow-2xl shadow-slate-300/40 z-50 backdrop-blur-md">
           <NavButton active={activeTab === 'catalog'} onClick={() => setActiveTab('catalog')} icon={List} label="Catálogo" />
@@ -282,43 +280,59 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({
   );
 };
 
-// ... Sub-componentes NavButton, SideMenuButton, NavDesktopButton, InfoCard ...
-// (Mantidos como no arquivo original para preservação de funcionalidade)
+/* --- Sub-componentes com tipagem explícita para evitar erros TS2367 --- */
 
-const SideMenuButton = ({ active, onClick, icon: Icon, label, count }: any) => (
+interface NavButtonProps {
+  active: boolean;
+  onClick: () => void;
+  icon: any;
+  label: string;
+  count?: number;
+}
+
+const NavButton: React.FC<NavButtonProps> = ({ active, onClick, icon: Icon, label, count }) => (
+  <button 
+    onClick={onClick}
+    className={`flex flex-col items-center p-2 rounded-none transition-all relative min-w-[65px] ${active ? 'text-red-600 bg-red-50/50' : 'text-slate-300'}`}
+  >
+    {count !== undefined && count > 0 && (
+      <span className="absolute -top-0.5 right-1.5 bg-red-600 text-white text-[8px] font-black min-w-[17px] h-[18px] px-1 rounded-none flex items-center justify-center border-2 border-white shadow-sm">
+        {count}
+      </span>
+    )}
+    <Icon className={`w-5 h-5 mb-1 ${active ? 'stroke-[2.5px]' : 'stroke-2'}`} />
+    <span className="text-[9px] font-black uppercase tracking-widest">{label}</span>
+  </button>
+);
+
+interface SideMenuButtonProps {
+  active: boolean;
+  onClick: () => void;
+  icon: any;
+  label: string;
+  count?: number;
+}
+
+const SideMenuButton: React.FC<SideMenuButtonProps> = ({ active, onClick, icon: Icon, label, count }) => (
   <button 
     onClick={onClick}
     className={`w-full flex items-center gap-4 px-5 py-4 rounded-none transition-all ${active ? 'bg-red-50 text-red-600' : 'text-slate-500 hover:bg-slate-50'}`}
   >
     <div className="relative">
       <Icon className={`w-5 h-5 ${active ? 'stroke-[2.5px]' : 'stroke-2'}`} />
-      {count > 0 && <span className="absolute -top-2 -right-2 w-4 h-4 bg-red-600 text-white text-[8px] font-black rounded-none flex items-center justify-center border border-white">{count}</span>}
+      {count !== undefined && count > 0 && (
+        <span className="absolute -top-2 -right-2 w-4 h-4 bg-red-600 text-white text-[8px] font-black rounded-none flex items-center justify-center border border-white shadow-sm">
+          {count}
+        </span>
+      )}
     </div>
     <span className="text-xs font-black uppercase tracking-widest flex-1 text-left">{label}</span>
     <ChevronRight className={`w-4 h-4 transition-opacity ${active ? 'opacity-100' : 'opacity-0'}`} />
   </button>
 );
 
-const NavButton = ({ active, onClick, icon: Icon, label, count }: any) => (
-  <button 
-    onClick={onClick}
-    className={`flex flex-col items-center p-2 rounded-none transition-all relative min-w-[65px] ${active ? 'text-red-600 bg-red-50/50' : 'text-slate-300'}`}
-  >
-    {count > 0 && <span className="absolute -top-0.5 right-1.5 bg-red-600 text-white text-[8px] font-black min-w-[17px] h-4.5 px-1 rounded-none flex items-center justify-center border-2 border-white">{count}</span>}
-    <Icon className={`w-5 h-5 mb-1 ${active ? 'stroke-[2.5px]' : 'stroke-2'}`} />
-    <span className="text-[9px] font-black uppercase tracking-widest">{label}</span>
-  </button>
-);
-
-const NavDesktopButton = ({ active, onClick, icon: Icon, label, count }: any) => (
-  <button onClick={onClick} className={`flex items-center gap-2.5 px-4 py-2 rounded-none font-bold text-xs transition-all ${active ? 'bg-white text-red-600 shadow-sm' : 'text-slate-500 hover:bg-slate-100'}`}>
-    <div className="relative"><Icon className={`w-4 h-4 ${active ? 'stroke-[2.5px]' : 'stroke-2'}`} />{count > 0 && <span className="absolute -top-1.5 -right-1.5 bg-red-600 text-white text-[7px] font-black w-3.5 h-3.5 rounded-none flex items-center justify-center border border-white">{count}</span>}</div>
-    <span className="uppercase tracking-widest">{label}</span>
-  </button>
-);
-
 const InfoCard = ({ label, value }: { label: string; value: string }) => (
-  <div className="bg-slate-50 p-5 rounded-none border border-slate-100 flex flex-col group transition-all hover:bg-white hover:border-red-100">
+  <div className="bg-slate-50 p-5 rounded-none border border-slate-100 flex flex-col group transition-all hover:bg-white hover:border-red-100 shadow-sm">
     <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1.5 group-hover:text-red-400 transition-colors">{label}</span>
     <span className="text-xs font-bold text-slate-800 break-words">{value || '---'}</span>
   </div>
