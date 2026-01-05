@@ -1,9 +1,9 @@
 
 import { GoogleGenAI, Type } from "@google/genai";
 
+const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+
 export const extractProductsFromPdf = async (base64Pdf: string) => {
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-  
   const response = await ai.models.generateContent({
     model: 'gemini-3-flash-preview',
     contents: {
@@ -50,5 +50,32 @@ export const extractProductsFromPdf = async (base64Pdf: string) => {
   } catch (e) {
     console.error("Erro ao parsear JSON da IA:", e);
     return [];
+  }
+};
+
+/**
+ * Busca uma URL de imagem de produto baseada na descrição usando Google Search
+ */
+export const searchProductImage = async (productDescription: string): Promise<string | null> => {
+  try {
+    const response = await ai.models.generateContent({
+      model: 'gemini-3-flash-preview',
+      contents: `Encontre uma URL direta de imagem de alta qualidade para o seguinte produto do Atacadão: "${productDescription}". 
+      A imagem deve ser profissional, preferencialmente em fundo branco. 
+      Retorne APENAS a URL da imagem encontrada. Se não encontrar, retorne uma string vazia.`,
+      config: {
+        tools: [{ googleSearch: {} }]
+      }
+    });
+
+    const url = response.text?.trim();
+    // Filtro básico para garantir que parece uma URL
+    if (url && (url.startsWith('http') || url.startsWith('https'))) {
+      return url;
+    }
+    return null;
+  } catch (error) {
+    console.error("Erro ao buscar imagem via IA:", error);
+    return null;
   }
 };
