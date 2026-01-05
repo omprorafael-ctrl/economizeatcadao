@@ -1,9 +1,9 @@
+
 import React, { useState } from 'react';
 import { CartItem, ClientData, Order, OrderStatus, Seller } from '../../types';
-// Fix: Added CheckCircle2 to the imports from lucide-react
-import { Trash2, Plus, Minus, ShoppingBag, Tag, Download, Loader2, Sparkles, MessageSquare, ArrowRight, UserCheck, CheckCircle2 } from 'lucide-react';
+import { Trash2, Plus, Minus, ShoppingBag, Tag, Download, Loader2, Sparkles, MessageSquare, ArrowRight, UserCheck, CheckCircle2, AlertTriangle } from 'lucide-react';
 import { jsPDF } from 'jspdf';
-import 'jspdf-autotable';
+import autoTable from 'jspdf-autotable';
 import { db } from '../../firebaseConfig';
 import { collection, addDoc } from 'firebase/firestore';
 
@@ -20,11 +20,16 @@ const Cart: React.FC<CartProps> = ({ cart, user, sellers, updateQuantity, remove
   const [isGenerating, setIsGenerating] = useState(false);
   const [selectedSeller, setSelectedSeller] = useState<Seller | null>(null);
   const [lastOrder, setLastOrder] = useState<Order | null>(null);
+  const [pdfError, setPdfError] = useState<string | null>(null);
+  
   const total = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
 
   const generatePDF = (order: Order) => {
     try {
+      setPdfError(null);
       const doc = new jsPDF();
+      
+      // Cabeçalho Vermelho Atacadão
       doc.setFillColor(220, 38, 38); 
       doc.rect(0, 0, 210, 45, 'F');
       
@@ -40,6 +45,7 @@ const Cart: React.FC<CartProps> = ({ cart, user, sellers, updateQuantity, remove
       doc.text(`PEDIDO: ${order.id}`, 140, 20);
       doc.text(`DATA: ${new Date().toLocaleString('pt-BR')}`, 140, 28);
 
+      // Dados do Cliente
       doc.setTextColor(50, 50, 50);
       doc.setFontSize(12);
       doc.setFont('helvetica', 'bold');
@@ -48,19 +54,20 @@ const Cart: React.FC<CartProps> = ({ cart, user, sellers, updateQuantity, remove
       doc.setFont('helvetica', 'normal');
       doc.setFontSize(10);
       doc.text(`Razão Social: ${user.name}`, 20, 68);
-      doc.text(`CNPJ/CPF: ${user.cpfCnpj}`, 20, 74);
-      doc.text(`Telefone: ${user.phone}`, 20, 80);
-      doc.text(`Endereço: ${user.address}`, 20, 86);
+      doc.text(`CNPJ/CPF: ${user.cpfCnpj || 'Não Informado'}`, 20, 74);
+      doc.text(`Telefone: ${user.phone || 'Não Informado'}`, 20, 80);
+      doc.text(`Endereço: ${user.address || 'Não Informado'}`, 20, 86);
 
-      const tableData = cart.map(item => [
-        item.code,
+      // Tabela de Itens
+      const tableData = order.items.map(item => [
+        `#${item.productId.slice(0, 5)}`,
         item.description.toUpperCase(),
         item.quantity.toString(),
-        `R$ ${item.price.toFixed(2).replace('.', ',')}`,
-        `R$ ${(item.price * item.quantity).toFixed(2).replace('.', ',')}`
+        `R$ ${item.unitPrice.toFixed(2).replace('.', ',')}`,
+        `R$ ${item.subtotal.toFixed(2).replace('.', ',')}`
       ]);
 
-      (doc as any).autoTable({
+      autoTable(doc, {
         startY: 95,
         head: [['CÓDIGO', 'DESCRIÇÃO DO PRODUTO', 'QTD', 'VALOR UN.', 'SUBTOTAL']],
         body: tableData,
@@ -68,7 +75,7 @@ const Cart: React.FC<CartProps> = ({ cart, user, sellers, updateQuantity, remove
         headStyles: { fillColor: [220, 38, 38], fontSize: 10, halign: 'center' },
         styles: { fontSize: 8, cellPadding: 3 },
         columnStyles: {
-          0: { cellWidth: 20, halign: 'center' },
+          0: { cellWidth: 25, halign: 'center' },
           1: { cellWidth: 'auto' },
           2: { cellWidth: 20, halign: 'center' },
           3: { cellWidth: 30, halign: 'right' },
@@ -77,18 +84,23 @@ const Cart: React.FC<CartProps> = ({ cart, user, sellers, updateQuantity, remove
       });
 
       const finalY = (doc as any).lastAutoTable.finalY + 15;
+      
+      // Rodapé de Totais
       doc.setFillColor(248, 250, 252);
-      doc.rect(130, finalY - 8, 60, 20, 'F');
+      doc.rect(130, finalY - 8, 60, 25, 'F');
       
       doc.setFont('helvetica', 'bold');
       doc.setFontSize(14);
       doc.setTextColor(220, 38, 38);
       doc.text(`VALOR TOTAL:`, 135, finalY);
-      doc.text(`R$ ${total.toFixed(2).replace('.', ',')}`, 135, finalY + 8);
+      doc.text(`R$ ${order.total.toFixed(2).replace('.', ',')}`, 135, finalY + 10);
 
+      // Salva o arquivo
       doc.save(`Pedido_${order.id}_Atacadao.pdf`);
-    } catch (err) {
-      console.error("Erro ao gerar PDF:", err);
+      console.log("PDF Gerado com sucesso!");
+    } catch (err: any) {
+      console.error("Erro crítico ao gerar PDF:", err);
+      setPdfError("Falha técnica ao processar o arquivo PDF. Tente novamente.");
     }
   };
 
@@ -121,13 +133,16 @@ const Cart: React.FC<CartProps> = ({ cart, user, sellers, updateQuantity, remove
         }))
       };
 
+      // Grava no banco
       await addDoc(collection(db, 'orders'), newOrder);
+      
+      // Dispara a geração do PDF
       generatePDF(newOrder);
+      
       setLastOrder(newOrder);
-      // Mantemos o estado de "Finalizado" para mostrar o botão do WhatsApp
-    } catch (err) {
-      console.error(err);
-      alert("Erro ao salvar pedido.");
+    } catch (err: any) {
+      console.error("Erro ao salvar pedido:", err);
+      alert("Erro de conexão. Verifique sua internet e tente novamente.");
     } finally {
       setIsGenerating(false);
     }
@@ -146,7 +161,7 @@ const Cart: React.FC<CartProps> = ({ cart, user, sellers, updateQuantity, remove
     );
     
     window.open(`https://wa.me/${selectedSeller.phone}?text=${message}`, '_blank');
-    onOrderCreated(lastOrder); // Limpa o carrinho e vai pro histórico
+    onOrderCreated(lastOrder); 
   };
 
   if (cart.length === 0) {
@@ -163,7 +178,6 @@ const Cart: React.FC<CartProps> = ({ cart, user, sellers, updateQuantity, remove
 
   return (
     <div className="flex flex-col h-full bg-transparent">
-      {/* Header com resumo */}
       <div className="p-10 bg-black/40 backdrop-blur-3xl border-b border-white/5 sticky top-0 z-20 flex justify-between items-end">
         <div>
           <h2 className="text-3xl font-black text-white tracking-tighter italic uppercase">Meu Pedido</h2>
@@ -176,7 +190,6 @@ const Cart: React.FC<CartProps> = ({ cart, user, sellers, updateQuantity, remove
       </div>
 
       <div className="flex-1 overflow-y-auto p-8 space-y-4 pb-80 scrollbar-hide">
-        {/* Seleção de Vendedora */}
         {!lastOrder && (
           <div className="bg-white/5 p-8 rounded-[35px] border border-white/10 mb-8 animate-in fade-in slide-in-from-top-4">
             <div className="flex items-center gap-4 mb-6">
@@ -189,26 +202,36 @@ const Cart: React.FC<CartProps> = ({ cart, user, sellers, updateQuantity, remove
               </div>
             </div>
             <div className="grid grid-cols-2 gap-3">
-              {sellers.filter(s => s.active).map(seller => (
-                <button
-                  key={seller.id}
-                  onClick={() => setSelectedSeller(seller)}
-                  className={`p-4 rounded-2xl border text-left transition-all relative overflow-hidden ${
-                    selectedSeller?.id === seller.id 
-                    ? 'bg-red-600 border-red-500 shadow-xl shadow-red-900/40' 
-                    : 'bg-black/20 border-white/5 hover:border-red-500/40 text-slate-400'
-                  }`}
-                >
-                  <p className={`font-black uppercase text-[10px] tracking-tight ${selectedSeller?.id === seller.id ? 'text-white' : 'text-slate-300'}`}>{seller.name}</p>
-                  <p className={`text-[8px] font-bold mt-1 ${selectedSeller?.id === seller.id ? 'text-red-100' : 'text-slate-600'}`}>Online</p>
-                  {selectedSeller?.id === seller.id && <Sparkles className="absolute -top-1 -right-1 w-8 h-8 opacity-20 text-white" />}
-                </button>
-              ))}
+              {sellers.filter(s => s.active).length > 0 ? (
+                sellers.filter(s => s.active).map(seller => (
+                  <button
+                    key={seller.id}
+                    onClick={() => setSelectedSeller(seller)}
+                    className={`p-4 rounded-2xl border text-left transition-all relative overflow-hidden ${
+                      selectedSeller?.id === seller.id 
+                      ? 'bg-red-600 border-red-500 shadow-xl shadow-red-900/40' 
+                      : 'bg-black/20 border-white/5 hover:border-red-500/40 text-slate-400'
+                    }`}
+                  >
+                    <p className={`font-black uppercase text-[10px] tracking-tight ${selectedSeller?.id === seller.id ? 'text-white' : 'text-slate-300'}`}>{seller.name}</p>
+                    <p className={`text-[8px] font-bold mt-1 ${selectedSeller?.id === seller.id ? 'text-red-100' : 'text-slate-600'}`}>Online</p>
+                    {selectedSeller?.id === seller.id && <Sparkles className="absolute -top-1 -right-1 w-8 h-8 opacity-20 text-white" />}
+                  </button>
+                ))
+              ) : (
+                <p className="col-span-2 text-[9px] text-red-500 uppercase font-black tracking-widest p-4 text-center bg-red-500/5 rounded-2xl border border-red-500/10">Nenhuma vendedora disponível no momento.</p>
+              )}
             </div>
           </div>
         )}
 
-        {/* Itens do Carrinho */}
+        {pdfError && (
+          <div className="bg-red-500/10 border border-red-500/20 p-6 rounded-3xl flex items-center gap-4 text-red-400 mb-6">
+            <AlertTriangle className="w-6 h-6 shrink-0" />
+            <p className="text-xs font-bold uppercase tracking-tight">{pdfError}</p>
+          </div>
+        )}
+
         <div className="space-y-4">
            <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.3em] px-4">Produtos Selecionados</p>
            {cart.map(item => (
@@ -227,13 +250,14 @@ const Cart: React.FC<CartProps> = ({ cart, user, sellers, updateQuantity, remove
                   </div>
                 </div>
               </div>
-              <button onClick={() => removeFromCart(item.id)} className="text-slate-600 hover:text-red-500 p-2"><Trash2 className="w-6 h-6" /></button>
+              {!lastOrder && (
+                <button onClick={() => removeFromCart(item.id)} className="text-slate-600 hover:text-red-500 p-2"><Trash2 className="w-6 h-6" /></button>
+              )}
             </div>
           ))}
         </div>
       </div>
 
-      {/* Footer Fixo com Ações */}
       <div className="fixed bottom-32 left-1/2 -translate-x-1/2 w-[92%] max-w-lg p-8 bg-black/90 backdrop-blur-3xl rounded-[45px] shadow-[0_25px_60px_rgba(220,38,38,0.25)] z-40 border border-red-500/20">
         {!lastOrder ? (
           <div className="space-y-4">
@@ -267,15 +291,21 @@ const Cart: React.FC<CartProps> = ({ cart, user, sellers, updateQuantity, remove
               <div className="inline-flex items-center justify-center w-16 h-16 bg-emerald-500/20 text-emerald-500 rounded-full mb-4">
                 <CheckCircle2 className="w-10 h-10" />
               </div>
-              <h3 className="text-xl font-black text-white uppercase tracking-tighter italic">Pedido # {lastOrder.id} Gerado!</h3>
+              <h3 className="text-xl font-black text-white uppercase tracking-tighter italic">Pedido #{lastOrder.id} Gerado!</h3>
               <p className="text-[10px] text-slate-500 font-bold uppercase tracking-[0.2em] mt-2">PDF baixado. Agora envie para a vendedora:</p>
             </div>
             <button 
               onClick={shareToWhatsApp}
-              className="w-full flex items-center justify-center gap-4 py-6 bg-emerald-600 hover:bg-emerald-500 text-white rounded-[30px] font-black text-xs uppercase tracking-[0.3em] shadow-[0_15px_40px_rgba(16,185,129,0.3)] transition-all active:scale-95 animate-bounce-subtle"
+              className="w-full flex items-center justify-center gap-4 py-6 bg-emerald-600 hover:bg-emerald-500 text-white rounded-[30px] font-black text-xs uppercase tracking-[0.3em] shadow-[0_15px_40px_rgba(16,185,129,0.3)] transition-all active:scale-95"
             >
               <MessageSquare className="w-6 h-6 fill-white/20" />
               Enviar via WhatsApp <ArrowRight className="w-5 h-5" />
+            </button>
+            <button 
+              onClick={() => generatePDF(lastOrder)}
+              className="w-full py-4 border border-white/10 bg-white/5 text-slate-400 rounded-2xl text-[9px] font-black uppercase tracking-widest hover:bg-white/10 transition-all"
+            >
+              Baixar PDF Novamente
             </button>
           </div>
         )}
