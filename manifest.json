@@ -1,0 +1,26 @@
+
+{
+  "short_name": "Atacadão",
+  "name": "Catálogo Economize Atacadão",
+  "description": "Sistema B2B de Catálogo e Pedidos Atacadão",
+  "icons": [
+    {
+      "src": "https://cdn-icons-png.flaticon.com/512/3081/3081840.png",
+      "type": "image/png",
+      "sizes": "192x192",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "https://cdn-icons-png.flaticon.com/512/3081/3081840.png",
+      "type": "image/png",
+      "sizes": "512x512",
+      "purpose": "any maskable"
+    }
+  ],
+  "start_url": "/",
+  "background_color": "#020617",
+  "display": "standalone",
+  "scope": "/",
+  "theme_color": "#2563eb",
+  "orientation": "portrait"
+}
