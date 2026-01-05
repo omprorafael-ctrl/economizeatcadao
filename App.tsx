@@ -30,7 +30,6 @@ const App: React.FC = () => {
               setCurrentUser(null);
             }
           } else {
-            // Usuário existe no Auth mas não tem perfil no Firestore
             await signOut(auth);
             setCurrentUser(null);
           }
@@ -108,13 +107,13 @@ const App: React.FC = () => {
         <ManagerDashboard 
           user={currentUser} 
           products={products}
-          setProducts={() => {}} 
+          setProducts={setProducts} 
           clients={clients}
-          setClients={() => {}}
+          setClients={setClients}
           orders={orders}
-          setOrders={() => {}}
+          setOrders={setOrders}
           managers={managers}
-          setManagers={() => {}}
+          setManagers={setManagers}
           onLogout={handleLogout} 
         />
       ) : (
@@ -122,7 +121,7 @@ const App: React.FC = () => {
           user={currentUser as ClientData} 
           products={products}
           orders={orders}
-          setOrders={() => {}}
+          setOrders={setOrders}
           onLogout={handleLogout} 
         />
       )}
