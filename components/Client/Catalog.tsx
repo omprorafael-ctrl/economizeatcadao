@@ -16,7 +16,8 @@ import {
   Filter,
   Heart,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  Image as ImageIcon
 } from 'lucide-react';
 
 interface CatalogProps {
@@ -120,7 +121,6 @@ const Catalog: React.FC<CatalogProps> = ({ products, onAddToCart }) => {
           
           {/* Navegação de Categorias com Setas Laterais */}
           <div className="relative flex items-center group/nav">
-            {/* Seta Esquerda */}
             <button 
               onClick={() => scrollCategories('left')}
               className="absolute left-0 z-20 p-1.5 bg-white/90 backdrop-blur-sm text-red-600 border border-slate-100 shadow-sm rounded-none hover:bg-red-50 transition-all opacity-0 group-hover/nav:opacity-100 hidden md:block"
@@ -151,11 +151,9 @@ const Catalog: React.FC<CatalogProps> = ({ products, onAddToCart }) => {
                   {group}
                 </button>
               ))}
-              {/* Espaçador final para garantir que o último item não seja cortado pelo fade */}
               <div className="w-8 shrink-0" />
             </div>
 
-            {/* Seta Direita */}
             <button 
               onClick={() => scrollCategories('right')}
               className="absolute right-0 z-20 p-1.5 bg-white/90 backdrop-blur-sm text-red-600 border border-slate-100 shadow-sm rounded-none hover:bg-red-50 transition-all opacity-0 group-hover/nav:opacity-100 hidden md:block"
@@ -190,11 +188,31 @@ const Catalog: React.FC<CatalogProps> = ({ products, onAddToCart }) => {
                  >
                    <Heart className={`w-4 h-4 transition-all ${isFavorite ? 'text-pink-500 fill-pink-500' : 'text-slate-300'}`} />
                  </button>
+
+                 {/* ÁREA DA FOTO DO PRODUTO NO GRID */}
+                 <div 
+                  onClick={() => setSelectedProduct(product)}
+                  className="aspect-square w-full bg-slate-50 border-b border-slate-50 relative overflow-hidden cursor-pointer"
+                 >
+                    {product.imageUrl ? (
+                      <img 
+                        src={product.imageUrl} 
+                        alt={product.description} 
+                        className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
+                        loading="lazy"
+                      />
+                    ) : (
+                      <div className="w-full h-full flex flex-col items-center justify-center text-slate-200">
+                        <Package className="w-10 h-10 mb-2" />
+                        <span className="text-[8px] font-black uppercase tracking-widest text-slate-300">Sem Foto</span>
+                      </div>
+                    )}
+                 </div>
                 
                 <div className="p-4 sm:p-5 flex-1 flex flex-col">
                   <h3 
                     onClick={() => setSelectedProduct(product)} 
-                    className="text-[11px] sm:text-xs font-bold text-slate-800 leading-snug mb-4 line-clamp-3 min-h-[48px] cursor-pointer group-hover:text-red-600 transition-colors uppercase tracking-tight"
+                    className="text-[11px] sm:text-xs font-bold text-slate-800 leading-snug mb-4 line-clamp-2 min-h-[32px] cursor-pointer group-hover:text-red-600 transition-colors uppercase tracking-tight"
                   >
                     {product.description}
                   </h3>
@@ -227,21 +245,18 @@ const Catalog: React.FC<CatalogProps> = ({ products, onAddToCart }) => {
                             />
                           </div>
                         ) : (
-                          <div className="flex items-center gap-2 cursor-pointer group/price" onClick={() => setEditingPriceId(product.id)}>
-                            <div className="flex items-baseline gap-1">
-                              <span className={`text-[11px] font-bold ${product.onSale ? 'text-red-600' : 'text-slate-400'}`}>R$</span>
-                              <span className={`text-xl font-black tracking-tighter ${product.onSale ? 'text-red-600' : 'text-slate-900'}`}>
-                                {currentPrice.toFixed(2).split('.')[0]}
-                                <span className="text-sm font-bold">,{currentPrice.toFixed(2).split('.')[1]}</span>
-                              </span>
-                            </div>
-                            <Edit3 className="w-3.5 h-3.5 text-slate-200 group-hover/price:text-red-400 transition-all scale-0 group-hover/price:scale-100" />
+                          <div className="flex items-baseline gap-1 cursor-pointer" onClick={() => setEditingPriceId(product.id)}>
+                            <span className={`text-[11px] font-bold ${product.onSale ? 'text-red-600' : 'text-slate-400'}`}>R$</span>
+                            <span className={`text-xl font-black tracking-tighter ${product.onSale ? 'text-red-600' : 'text-slate-900'}`}>
+                              {currentPrice.toFixed(2).split('.')[0]}
+                              <span className="text-sm font-bold">,{currentPrice.toFixed(2).split('.')[1]}</span>
+                            </span>
                           </div>
                         )}
                       </div>
                     </div>
 
-                    <div className="flex items-center gap-2 sm:gap-3">
+                    <div className="flex items-center gap-2">
                        <div className="flex items-center bg-slate-50 rounded-none border border-slate-100 h-9 px-1 transition-all group-hover:bg-white group-hover:border-slate-200 shadow-inner">
                           <button onClick={() => handleQtyChange(product.id, -1)} className="w-8 h-full text-slate-400 hover:text-red-600 transition-colors flex items-center justify-center"><Minus className="w-3.5 h-3.5" /></button>
                           <span className="text-xs font-black text-slate-800 min-w-[20px] text-center">{qty}</span>
@@ -275,73 +290,84 @@ const Catalog: React.FC<CatalogProps> = ({ products, onAddToCart }) => {
         )}
       </div>
 
-      {/* Sheet de Detalhes Adaptável */}
+      {/* Modal de Detalhes com Foto Ampliada */}
       {selectedProduct && (
-        <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center p-0 sm:p-4 md:p-10 animate-in fade-in duration-300">
-          <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-md transition-opacity" onClick={() => setSelectedProduct(null)} />
-          <div className="relative bg-white w-full max-w-2xl rounded-none shadow-2xl overflow-hidden flex flex-col sm:max-h-[90vh] border border-slate-100 animate-in slide-in-from-bottom-20 duration-500">
+        <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center p-0 sm:p-4 animate-in fade-in duration-300">
+          <div className="absolute inset-0 bg-slate-900/50 backdrop-blur-md" onClick={() => setSelectedProduct(null)} />
+          <div className="relative bg-white w-full max-w-2xl rounded-none shadow-2xl overflow-hidden flex flex-col sm:max-h-[95vh] border border-slate-100 animate-in slide-in-from-bottom-20 duration-500">
             
-            <div className="hidden sm:flex absolute top-6 right-6 z-10 flex gap-2">
+            <div className="flex absolute top-6 right-6 z-10 flex gap-2">
               <button 
                 onClick={(e) => toggleFavorite(selectedProduct.id, e)}
-                className={`p-3 bg-slate-100 rounded-none transition-all shadow-sm ${favorites.includes(selectedProduct.id) ? 'text-pink-500' : 'text-slate-400 hover:text-pink-500'}`}
+                className={`p-3 bg-white/90 backdrop-blur-sm rounded-none transition-all shadow-sm ${favorites.includes(selectedProduct.id) ? 'text-pink-500' : 'text-slate-400 hover:text-pink-500'}`}
               >
                 <Heart className={`w-6 h-6 ${favorites.includes(selectedProduct.id) ? 'fill-pink-500' : ''}`} />
               </button>
-              <button onClick={() => setSelectedProduct(null)} className="p-3 bg-slate-100 hover:bg-red-50 text-slate-400 hover:text-red-600 rounded-none transition-all shadow-sm"><X className="w-6 h-6" /></button>
+              <button onClick={() => setSelectedProduct(null)} className="p-3 bg-white/90 backdrop-blur-sm hover:bg-red-50 text-slate-400 hover:text-red-600 rounded-none transition-all shadow-sm"><X className="w-6 h-6" /></button>
             </div>
 
-            <div className="w-12 h-1 bg-slate-100 rounded-full mx-auto mt-4 mb-2 shrink-0 sm:hidden" />
-
-            <div className="px-8 py-10 overflow-y-auto scrollbar-hide space-y-10">
-              <div className="space-y-4">
-                <div className="flex items-center gap-3">
-                   <span className="px-3 py-1 bg-slate-100 text-slate-500 rounded-none text-[10px] font-black uppercase tracking-widest border border-slate-200">SKU {selectedProduct.code}</span>
-                   <span className="px-3 py-1 bg-red-50 text-red-600 rounded-none text-[10px] font-black uppercase tracking-widest border border-red-100">{selectedProduct.group}</span>
-                   {favorites.includes(selectedProduct.id) && (
-                     <span className="px-3 py-1 bg-pink-50 text-pink-600 rounded-none text-[10px] font-black uppercase tracking-widest border border-pink-100 flex items-center gap-1.5">
-                       <Heart className="w-3 h-3 fill-pink-500" /> Favorito
-                     </span>
-                   )}
-                </div>
-                <h2 className="text-2xl sm:text-3xl font-black text-slate-900 leading-tight uppercase tracking-tighter">{selectedProduct.description}</h2>
+            <div className="overflow-y-auto scrollbar-hide">
+              {/* FOTO AMPLIADA NO MODAL */}
+              <div className="aspect-video w-full bg-slate-100 relative overflow-hidden shrink-0">
+                 {selectedProduct.imageUrl ? (
+                   <img src={selectedProduct.imageUrl} alt="" className="w-full h-full object-cover" />
+                 ) : (
+                   <div className="w-full h-full flex flex-col items-center justify-center text-slate-300">
+                      <ImageIcon className="w-16 h-16 mb-4" />
+                      <p className="text-[10px] font-black uppercase tracking-[0.3em]">Imagem não disponível</p>
+                   </div>
+                 )}
+                 <div className="absolute bottom-0 left-0 right-0 h-24 bg-gradient-to-t from-white to-transparent" />
               </div>
 
-              <div className="p-8 rounded-none bg-slate-50 border border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-6">
-                <div>
-                  <p className="text-[11px] font-black text-slate-400 uppercase tracking-widest mb-2">Valor de Negociação</p>
-                  <div className="flex flex-col">
-                    <p className="text-5xl font-black tracking-tighter text-slate-900">
-                      <span className="text-xl mr-2">R$</span>
-                      {(customPrices[selectedProduct.id] || (selectedProduct.onSale && selectedProduct.salePrice ? selectedProduct.salePrice : selectedProduct.price)).toFixed(2).replace('.', ',')}
-                    </p>
+              <div className="px-8 pb-10 space-y-8 relative -mt-10">
+                <div className="space-y-4">
+                  <div className="flex items-center gap-3">
+                    <span className="px-3 py-1 bg-white text-slate-500 rounded-none text-[10px] font-black uppercase tracking-widest border border-slate-200 shadow-sm">SKU {selectedProduct.code}</span>
+                    <span className="px-3 py-1 bg-red-600 text-white rounded-none text-[10px] font-black uppercase tracking-widest border border-red-600 shadow-lg shadow-red-100">{selectedProduct.group}</span>
+                    {favorites.includes(selectedProduct.id) && (
+                      <span className="px-3 py-1 bg-pink-50 text-pink-600 rounded-none text-[10px] font-black uppercase tracking-widest border border-pink-100 flex items-center gap-1.5">
+                        <Heart className="w-3 h-3 fill-pink-500" /> Favorito
+                      </span>
+                    )}
+                  </div>
+                  <h2 className="text-2xl sm:text-3xl font-black text-slate-900 leading-tight uppercase tracking-tighter">{selectedProduct.description}</h2>
+                </div>
+
+                <div className="p-8 rounded-none bg-slate-50 border border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-6">
+                  <div>
+                    <p className="text-[11px] font-black text-slate-400 uppercase tracking-widest mb-2">Valor de Negociação</p>
+                    <div className="flex flex-col">
+                      <p className="text-5xl font-black tracking-tighter text-slate-900">
+                        <span className="text-xl mr-2 font-bold">R$</span>
+                        {(customPrices[selectedProduct.id] || (selectedProduct.onSale && selectedProduct.salePrice ? selectedProduct.salePrice : selectedProduct.price)).toFixed(2).replace('.', ',')}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex flex-col items-start sm:items-end gap-3">
+                    <div className="flex items-center gap-2 px-4 py-2 bg-white text-emerald-600 rounded-none border border-emerald-100 shadow-sm">
+                        <Truck className="w-5 h-5" />
+                        <span className="text-[11px] font-black uppercase tracking-widest">Entrega Imediata</span>
+                    </div>
+                    <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest sm:text-right">Sujeito a conferência de estoque físico.</p>
                   </div>
                 </div>
-                <div className="flex flex-col items-start sm:items-end gap-3">
-                   <div className="flex items-center gap-2 px-4 py-2 bg-white text-emerald-600 rounded-none border border-emerald-100 shadow-sm">
-                      <Truck className="w-5 h-5" />
-                      <span className="text-[11px] font-black uppercase tracking-widest">Entrega Imediata</span>
-                   </div>
-                   <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest sm:text-right">Sujeito a conferência de estoque físico no momento do faturamento.</p>
-                </div>
-              </div>
 
-              <div className="flex flex-col sm:flex-row items-center gap-4">
-                <div className="flex items-center bg-white rounded-none border border-slate-200 h-16 shadow-md px-3 w-full sm:w-auto">
-                  <button onClick={() => handleQtyChange(selectedProduct.id, -1)} className="w-12 h-full text-slate-400 hover:text-red-600 transition-colors flex items-center justify-center"><Minus className="w-6 h-6" /></button>
-                  <span className="w-12 text-center font-black text-slate-900 text-xl">{quantities[selectedProduct.id] || 1}</span>
-                  <button onClick={() => handleQtyChange(selectedProduct.id, 1)} className="w-12 h-full text-slate-400 hover:text-red-600 transition-colors flex items-center justify-center"><Plus className="w-6 h-6" /></button>
+                <div className="flex flex-col sm:flex-row items-center gap-4">
+                  <div className="flex items-center bg-white rounded-none border border-slate-200 h-16 shadow-md px-3 w-full sm:w-auto">
+                    <button onClick={() => handleQtyChange(selectedProduct.id, -1)} className="w-12 h-full text-slate-400 hover:text-red-600 transition-colors flex items-center justify-center"><Minus className="w-6 h-6" /></button>
+                    <span className="w-12 text-center font-black text-slate-900 text-xl">{quantities[selectedProduct.id] || 1}</span>
+                    <button onClick={() => handleQtyChange(selectedProduct.id, 1)} className="w-12 h-full text-slate-400 hover:text-red-600 transition-colors flex items-center justify-center"><Plus className="w-6 h-6" /></button>
+                  </div>
+                  <button 
+                    onClick={() => { handleAdd(selectedProduct); setSelectedProduct(null); }}
+                    className="flex-1 w-full h-16 bg-red-600 hover:bg-red-700 text-white rounded-none font-black text-sm uppercase tracking-[0.2em] flex items-center justify-center gap-4 shadow-xl shadow-red-100 transition-all active:scale-95"
+                  >
+                    <ShoppingCart className="w-5 h-5" /> Adicionar à Cesta
+                  </button>
                 </div>
-                <button 
-                  onClick={() => { handleAdd(selectedProduct); setSelectedProduct(null); }}
-                  className="flex-1 w-full h-16 bg-red-600 hover:bg-red-700 text-white rounded-none font-black text-sm uppercase tracking-[0.2em] flex items-center justify-center gap-4 shadow-xl shadow-red-100 transition-all active:scale-95"
-                >
-                  <ShoppingCart className="w-5 h-5" /> Adicionar à Cesta
-                </button>
               </div>
             </div>
-            
-            <div className="h-10 bg-white sm:hidden" />
           </div>
         </div>
       )}
