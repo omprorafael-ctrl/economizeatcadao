@@ -1,7 +1,8 @@
 
 export enum UserRole {
   MANAGER = 'manager',
-  CLIENT = 'client'
+  CLIENT = 'client',
+  SELLER = 'seller'
 }
 
 export interface User {
@@ -19,12 +20,8 @@ export interface ClientData extends User {
   address: string;
 }
 
-export interface Seller {
-  id: string;
-  name: string;
+export interface Seller extends User {
   phone: string;
-  active: boolean;
-  createdAt: string;
 }
 
 export interface Product {
@@ -42,6 +39,9 @@ export interface Product {
 
 export enum OrderStatus {
   GENERATED = 'gerado',
+  IN_PROGRESS = 'em andamento',
+  INVOICED = 'faturado',
+  CANCELLED = 'cancelado',
   SENT = 'enviado',
   FINISHED = 'finalizado'
 }

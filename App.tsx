@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { UserRole, User, Product, ClientData, Order, Seller } from './types';
 import ManagerDashboard from './components/Manager/ManagerDashboard';
 import ClientDashboard from './components/Client/ClientDashboard';
+import SellerDashboard from './components/Seller/SellerDashboard';
 import Login from './components/Auth/Login';
 import { auth, db } from './firebaseConfig';
 import { onAuthStateChanged, signOut } from 'firebase/auth';
@@ -59,20 +60,16 @@ const App: React.FC = () => {
     });
 
     const unsubUsers = onSnapshot(collection(db, 'users'), (snapshot) => {
-      const allUsers = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as User));
+      const allUsers = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as any));
       setClients(allUsers.filter(u => u.role === UserRole.CLIENT) as ClientData[]);
       setManagers(allUsers.filter(u => u.role === UserRole.MANAGER));
-    });
-
-    const unsubSellers = onSnapshot(collection(db, 'sellers'), (snapshot) => {
-      setSellers(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Seller)));
+      setSellers(allUsers.filter(u => u.role === UserRole.SELLER) as Seller[]);
     });
 
     return () => {
       unsubProducts();
       unsubOrders();
       unsubUsers();
-      unsubSellers();
     };
   }, [currentUser]);
 
@@ -115,8 +112,14 @@ const App: React.FC = () => {
           managers={managers}
           setManagers={setManagers}
           sellers={sellers}
-          setSellers={setSellers}
+          setSellers={setSellers as any}
           onLogout={handleLogout} 
+        />
+      ) : currentUser.role === UserRole.SELLER ? (
+        <SellerDashboard 
+          user={currentUser as Seller}
+          orders={orders}
+          onLogout={handleLogout}
         />
       ) : (
         <ClientDashboard 

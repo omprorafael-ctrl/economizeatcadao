@@ -1,9 +1,11 @@
 
 import React, { useState } from 'react';
-import { Seller } from '../../types';
-import { Contact, Plus, Trash2, X, Phone, User, Loader2, MessageCircle, AlertTriangle } from 'lucide-react';
-import { db } from '../../firebaseConfig';
-import { collection, addDoc, doc, deleteDoc, updateDoc } from 'firebase/firestore';
+import { Seller, UserRole } from '../../types';
+import { Contact, Plus, Trash2, X, Phone, User, Loader2, MessageCircle, AlertTriangle, Mail, Key, ArrowRight } from 'lucide-react';
+import { db, firebaseConfig } from '../../firebaseConfig';
+import { collection, addDoc, doc, deleteDoc, updateDoc, setDoc } from 'firebase/firestore';
+import { initializeApp, deleteApp } from 'firebase/app';
+import { getAuth, createUserWithEmailAndPassword, signOut } from 'firebase/auth';
 
 interface SellerListProps {
   sellers: Seller[];
@@ -13,7 +15,7 @@ interface SellerListProps {
 const SellerList: React.FC<SellerListProps> = ({ sellers, setSellers }) => {
   const [showModal, setShowModal] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [formData, setFormData] = useState({ name: '', phone: '' });
+  const [formData, setFormData] = useState({ name: '', email: '', password: '', phone: '' });
 
   const handleCreateSeller = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -22,28 +24,52 @@ const SellerList: React.FC<SellerListProps> = ({ sellers, setSellers }) => {
       alert("WhatsApp inválido.");
       return;
     }
+    if (formData.password.length < 6) {
+      alert("Senha muito curta.");
+      return;
+    }
+    
     setLoading(true);
+    const secondaryApp = initializeApp(firebaseConfig, "SellerCreationApp");
+    const secondaryAuth = getAuth(secondaryApp);
+
     try {
-      const sellerData = { name: formData.name.trim(), phone: cleanPhone, active: true, createdAt: new Date().toISOString() };
-      await addDoc(collection(db, 'sellers'), sellerData);
-      setFormData({ name: '', phone: '' });
+      const userCredential = await createUserWithEmailAndPassword(secondaryAuth, formData.email, formData.password);
+      const uid = userCredential.user.uid;
+      
+      const sellerData = { 
+        id: uid,
+        name: formData.name.trim(), 
+        email: formData.email.trim(),
+        role: UserRole.SELLER,
+        phone: cleanPhone, 
+        active: true, 
+        createdAt: new Date().toISOString() 
+      };
+
+      await setDoc(doc(db, 'users', uid), sellerData);
+      await signOut(secondaryAuth);
+      await deleteApp(secondaryApp);
+      
+      setFormData({ name: '', email: '', password: '', phone: '' });
       setShowModal(false);
     } catch (error: any) {
       console.error(error);
-      alert(`Erro ao cadastrar.`);
+      alert(`Erro ao cadastrar acesso da vendedora.`);
+      try { await deleteApp(secondaryApp); } catch(e) {}
     } finally {
       setLoading(false);
     }
   };
 
   const deleteSeller = async (id: string) => {
-    if (window.confirm("Deseja remover esta vendedora?")) {
-      try { await deleteDoc(doc(db, 'sellers', id)); } catch (error) { console.error(error); }
+    if (window.confirm("Deseja remover o acesso desta vendedora?")) {
+      try { await deleteDoc(doc(db, 'users', id)); } catch (error) { console.error(error); }
     }
   };
 
   const toggleStatus = async (id: string, current: boolean) => {
-    try { await updateDoc(doc(db, 'sellers', id), { active: !current }); } catch (error) { console.error(error); }
+    try { await updateDoc(doc(db, 'users', id), { active: !current }); } catch (error) { console.error(error); }
   };
 
   return (
@@ -54,15 +80,15 @@ const SellerList: React.FC<SellerListProps> = ({ sellers, setSellers }) => {
             <Contact className="w-6 h-6 text-emerald-600" />
           </div>
           <div>
-            <h3 className="text-sm font-bold text-slate-800 uppercase tracking-widest">Atendimento B2B</h3>
-            <p className="text-[9px] text-slate-400 font-bold uppercase tracking-widest mt-1">Gestão de canais diretos via WhatsApp</p>
+            <h3 className="text-sm font-bold text-slate-800 uppercase tracking-widest">Acessos de Vendedoras</h3>
+            <p className="text-[9px] text-slate-400 font-bold uppercase tracking-widest mt-1">Gestão de canais de faturamento</p>
           </div>
         </div>
         <button 
           onClick={() => setShowModal(true)}
           className="bg-red-600 hover:bg-red-700 text-white px-6 py-3 rounded-xl font-bold text-[10px] uppercase tracking-widest flex items-center justify-center gap-3 shadow-md transition-all active:scale-95"
         >
-          <Plus className="w-4 h-4" /> Nova Vendedora
+          <Plus className="w-4 h-4" /> Novo Acesso Vendedora
         </button>
       </div>
 
@@ -80,11 +106,12 @@ const SellerList: React.FC<SellerListProps> = ({ sellers, setSellers }) => {
                     seller.active ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : 'bg-red-50 text-red-600 border-red-100 opacity-50'
                   }`}
                 >
-                  {seller.active ? 'Disponível' : 'Inativa'}
+                  {seller.active ? 'Ativa' : 'Inativa'}
                 </button>
               </div>
               
-              <h4 className="font-bold text-slate-900 text-base uppercase truncate leading-tight mb-4">{seller.name}</h4>
+              <h4 className="font-bold text-slate-900 text-base uppercase truncate leading-tight mb-2">{seller.name}</h4>
+              <p className="text-[10px] text-slate-400 font-medium mb-4 italic truncate">{seller.email}</p>
               
               <div className="flex items-center gap-3 text-emerald-600 font-bold bg-emerald-50 p-3 rounded-xl border border-emerald-100 mb-6">
                 <MessageCircle className="w-4 h-4" />
@@ -99,7 +126,7 @@ const SellerList: React.FC<SellerListProps> = ({ sellers, setSellers }) => {
         ) : (
           <div className="col-span-full py-20 text-center border-2 border-dashed border-slate-100 rounded-[30px] flex flex-col items-center justify-center bg-slate-50/50">
             <AlertTriangle className="w-10 h-10 text-slate-200 mb-4" />
-            <p className="font-bold text-slate-400 uppercase tracking-widest text-[9px]">Sem vendedoras ativas no sistema</p>
+            <p className="font-bold text-slate-400 uppercase tracking-widest text-[9px]">Sem vendedoras cadastradas</p>
           </div>
         )}
       </div>
@@ -109,25 +136,39 @@ const SellerList: React.FC<SellerListProps> = ({ sellers, setSellers }) => {
           <div className="absolute inset-0" onClick={() => !loading && setShowModal(false)} />
           <div className="relative bg-white w-full max-w-md rounded-3xl shadow-2xl border border-slate-200 overflow-hidden animate-in zoom-in-95">
             <div className="p-6 bg-slate-50 border-b border-slate-100 flex items-center justify-between">
-              <h3 className="text-sm font-bold text-slate-800 uppercase tracking-widest">Cadastrar Novo Acesso</h3>
+              <h3 className="text-sm font-bold text-slate-800 uppercase tracking-widest">Credenciar Vendedora</h3>
               <button onClick={() => !loading && setShowModal(false)} className="p-1.5 text-slate-400 hover:text-slate-600"><X className="w-4 h-4" /></button>
             </div>
             <form onSubmit={handleCreateSeller} className="p-8 space-y-4">
               <div className="space-y-1.5">
                 <label className="text-[9px] font-bold text-slate-400 uppercase tracking-widest ml-1">Nome</label>
-                <input type="text" required autoFocus className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:bg-white focus:border-red-300 transition-all font-bold text-slate-700 text-xs" placeholder="Ex: Maria Atendimento" value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} />
+                <input type="text" required autoFocus disabled={loading} className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:bg-white focus:border-red-300 transition-all font-bold text-slate-700 text-xs" placeholder="Ex: Maria" value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} />
               </div>
               <div className="space-y-1.5">
-                <label className="text-[9px] font-bold text-slate-400 uppercase tracking-widest ml-1">WhatsApp</label>
+                <label className="text-[9px] font-bold text-slate-400 uppercase tracking-widest ml-1">E-mail de Acesso</label>
+                <div className="relative">
+                  <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300 w-3.5 h-3.5" />
+                  <input type="email" required disabled={loading} className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:bg-white focus:border-red-300 transition-all font-bold text-slate-700 text-xs" placeholder="maria@atacadao.com" value={formData.email} onChange={(e) => setFormData({ ...formData, email: e.target.value })} />
+                </div>
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-[9px] font-bold text-slate-400 uppercase tracking-widest ml-1">Senha Temporária</label>
+                <div className="relative">
+                  <Key className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300 w-3.5 h-3.5" />
+                  <input type="password" required disabled={loading} className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:bg-white focus:border-red-300 transition-all font-bold text-slate-700 text-xs" placeholder="Min 6 caracteres" value={formData.password} onChange={(e) => setFormData({ ...formData, password: e.target.value })} />
+                </div>
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-[9px] font-bold text-slate-400 uppercase tracking-widest ml-1">WhatsApp de Contato</label>
                 <div className="relative">
                   <Phone className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300 w-3.5 h-3.5" />
-                  <input type="text" required className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:bg-white focus:border-red-300 transition-all font-bold text-slate-700 text-xs" placeholder="11999999999" value={formData.phone} onChange={(e) => setFormData({ ...formData, phone: e.target.value })} />
+                  <input type="text" required disabled={loading} className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:bg-white focus:border-red-300 transition-all font-bold text-slate-700 text-xs" placeholder="11999999999" value={formData.phone} onChange={(e) => setFormData({ ...formData, phone: e.target.value })} />
                 </div>
               </div>
               <div className="pt-6 flex gap-3">
                 <button type="button" disabled={loading} onClick={() => setShowModal(false)} className="flex-1 py-2.5 bg-slate-100 text-slate-500 font-bold rounded-xl text-[10px] uppercase tracking-widest hover:bg-slate-200">Cancelar</button>
                 <button type="submit" disabled={loading} className="flex-1 py-2.5 bg-red-600 text-white font-bold rounded-xl text-[10px] uppercase tracking-widest hover:bg-red-700 shadow-md flex items-center justify-center gap-2">
-                  {loading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : 'Salvar'}
+                  {loading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <>Cadastrar Vendedora <ArrowRight className="w-4 h-4" /></>}
                 </button>
               </div>
             </form>

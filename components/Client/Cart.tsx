@@ -1,7 +1,23 @@
 
 import React, { useState } from 'react';
 import { CartItem, ClientData, Order, OrderStatus, Seller } from '../../types';
-import { Trash2, Plus, Minus, ShoppingBag, Download, Loader2, Sparkles, MessageSquare, CheckCircle2, AlertTriangle, Share2, FileText, User } from 'lucide-react';
+import { 
+  Trash2, 
+  Plus, 
+  Minus, 
+  ShoppingBag, 
+  Loader2, 
+  MessageSquare, 
+  CheckCircle2, 
+  AlertTriangle, 
+  Share2, 
+  FileText, 
+  User, 
+  Edit3,
+  ArrowRight,
+  ChevronRight,
+  Sparkles
+} from 'lucide-react';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { db } from '../../firebaseConfig';
@@ -14,17 +30,20 @@ interface CartProps {
   updateQuantity: (id: string, delta: number) => void;
   removeFromCart: (id: string) => void;
   onOrderCreated: (order: Order) => void;
+  onUpdatePrice?: (id: string, newPrice: number) => void;
 }
 
-const Cart: React.FC<CartProps> = ({ cart, user, sellers, updateQuantity, removeFromCart, onOrderCreated }) => {
+const Cart: React.FC<CartProps> = ({ 
+  cart, user, sellers, updateQuantity, removeFromCart, onOrderCreated, onUpdatePrice 
+}) => {
   const [isGenerating, setIsGenerating] = useState(false);
   const [selectedSeller, setSelectedSeller] = useState<Seller | null>(null);
   const [lastOrder, setLastOrder] = useState<Order | null>(null);
   const [pdfError, setPdfError] = useState<string | null>(null);
+  const [editingPriceId, setEditingPriceId] = useState<string | null>(null);
   
-  const total = cart.reduce((sum, item) => sum + (((item.onSale && item.salePrice) ? item.salePrice : item.price) * item.quantity), 0);
+  const total = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
 
-  // ... (Lógica do PDF mantida idêntica, apenas visual muda)
   const getPDFDocument = (order: Order) => {
     const doc = new jsPDF();
     doc.setFillColor(220, 38, 38); 
@@ -48,6 +67,7 @@ const Cart: React.FC<CartProps> = ({ cart, user, sellers, updateQuantity, remove
     doc.text(`CNPJ/CPF: ${user.cpfCnpj || 'Não Informado'}`, 20, 74);
     doc.text(`Telefone: ${user.phone || 'Não Informado'}`, 20, 80);
     doc.text(`Endereço: ${user.address || 'Não Informado'}`, 20, 86);
+    
     const tableData = order.items.map(item => [
       `#${item.productId.slice(0, 5)}`,
       item.description.toUpperCase(),
@@ -55,6 +75,7 @@ const Cart: React.FC<CartProps> = ({ cart, user, sellers, updateQuantity, remove
       `R$ ${item.unitPrice.toFixed(2).replace('.', ',')}`,
       `R$ ${item.subtotal.toFixed(2).replace('.', ',')}`
     ]);
+
     autoTable(doc, {
       startY: 95,
       head: [['CÓDIGO', 'DESCRIÇÃO DO PRODUTO', 'QTD', 'VALOR UN.', 'SUBTOTAL']],
@@ -70,6 +91,7 @@ const Cart: React.FC<CartProps> = ({ cart, user, sellers, updateQuantity, remove
         4: { cellWidth: 30, halign: 'right' },
       }
     });
+
     const finalY = (doc as any).lastAutoTable.finalY + 15;
     doc.setFillColor(248, 250, 252);
     doc.rect(130, finalY - 8, 60, 25, 'F');
@@ -82,32 +104,35 @@ const Cart: React.FC<CartProps> = ({ cart, user, sellers, updateQuantity, remove
   };
 
   const handleShareAndDownloadPDF = async (order: Order) => {
-    try {
-      setPdfError(null);
-      const doc = getPDFDocument(order);
-      const fileName = `Pedido_${order.id}_Atacadao.pdf`;
-      doc.save(fileName);
-      const pdfBlob = doc.output('blob');
-      const file = new File([pdfBlob], fileName, { type: 'application/pdf' });
-      if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
+    setPdfError(null);
+    const doc = getPDFDocument(order);
+    const fileName = `Pedido_${order.id}_Atacadao.pdf`;
+    doc.save(fileName);
+    const pdfBlob = doc.output('blob');
+    const file = new File([pdfBlob], fileName, { type: 'application/pdf' });
+    
+    if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
+      try {
         await navigator.share({
           files: [file],
           title: `Pedido Atacadão #${order.id}`,
-          text: `Segue em anexo o PDF oficial do meu pedido #${order.id} gerado agora no Portal.`
+          text: `Pedido #${order.id} gerado via Portal Atacadão.`
         });
-      } else {
-        alert("Download efetuado! Agora anexe o arquivo manualmente no WhatsApp.");
+      } catch (err: any) {
+        if (err.name !== 'AbortError') {
+          console.error("Erro no compartilhamento:", err);
+          setPdfError("O PDF foi baixado. Compartilhe-o manualmente.");
+        }
       }
-    } catch (err) {
-      console.error("Erro PDF Share:", err);
-      setPdfError("Falha ao abrir seletor de compartilhamento. O arquivo foi baixado.");
+    } else {
+      setPdfError("O PDF foi baixado. Compartilhe-o manualmente.");
     }
   };
 
   const handleGenerateOrder = async () => {
     if (cart.length === 0) return;
     if (!selectedSeller) {
-      alert("Por favor, selecione uma vendedora para prosseguir.");
+      alert("Selecione uma vendedora primeiro.");
       return;
     }
     setIsGenerating(true);
@@ -126,8 +151,8 @@ const Cart: React.FC<CartProps> = ({ cart, user, sellers, updateQuantity, remove
           productId: item.id,
           description: item.description,
           quantity: item.quantity,
-          unitPrice: (item.onSale && item.salePrice) ? item.salePrice : item.price,
-          subtotal: ((item.onSale && item.salePrice) ? item.salePrice : item.price) * item.quantity
+          unitPrice: item.price,
+          subtotal: item.price * item.quantity
         }))
       };
       await addDoc(collection(db, 'orders'), newOrder);
@@ -135,7 +160,6 @@ const Cart: React.FC<CartProps> = ({ cart, user, sellers, updateQuantity, remove
       await handleShareAndDownloadPDF(newOrder);
     } catch (err: any) {
       console.error("Erro Order:", err);
-      alert("Erro ao processar pedido no servidor.");
     } finally {
       setIsGenerating(false);
     }
@@ -144,16 +168,16 @@ const Cart: React.FC<CartProps> = ({ cart, user, sellers, updateQuantity, remove
   const openWhatsAppWithDetails = () => {
     if (!lastOrder || !selectedSeller) return;
     const itemsList = lastOrder.items.map(item => 
-      `• ${item.quantity}x ${item.description.toUpperCase()}\n   _Un: R$ ${item.unitPrice.toFixed(2).replace('.', ',')} | Sub: R$ ${item.subtotal.toFixed(2).replace('.', ',')}_`
+      `• ${item.quantity}x ${item.description.toUpperCase()}\n   _R$ ${item.unitPrice.toFixed(2)} / un_`
     ).join('\n\n');
     const message = encodeURIComponent(
       `*🛒 NOVO PEDIDO - PORTAL ATACADÃO*\n\n` +
       `Olá, *${selectedSeller.name}*!\n` +
-      `Sou o cliente: *${user.name}*\n` +
+      `Cliente: *${user.name}*\n` +
       `Pedido: *#${lastOrder.id}*\n\n` +
-      `*DETALHAMENTO DO PEDIDO:*\n${itemsList}\n\n` +
-      `*💰 TOTAL GERAL: R$ ${lastOrder.total.toFixed(2).replace('.', ',')}*\n\n` +
-      `_O PDF detalhado já foi baixado e estou enviando em anexo._`
+      `*DETALHAMENTO:*\n${itemsList}\n\n` +
+      `*💰 TOTAL: R$ ${lastOrder.total.toFixed(2).replace('.', ',')}*\n\n` +
+      `_O PDF detalhado foi enviado em anexo._`
     );
     window.open(`https://wa.me/${selectedSeller.phone}?text=${message}`, '_blank');
     onOrderCreated(lastOrder); 
@@ -161,150 +185,204 @@ const Cart: React.FC<CartProps> = ({ cart, user, sellers, updateQuantity, remove
 
   if (cart.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center h-full p-10 text-center bg-slate-50">
-        <div className="bg-slate-100 p-8 rounded-full mb-6 text-slate-300">
+      <div className="flex flex-col items-center justify-center h-full p-10 text-center bg-white animate-in fade-in">
+        <div className="bg-slate-50 p-8 rounded-none mb-6 text-slate-200 border border-slate-100 shadow-inner">
           <ShoppingBag className="w-16 h-16" />
         </div>
-        <h2 className="text-lg font-bold text-slate-800 uppercase tracking-wide">Cesta Vazia</h2>
-        <p className="text-slate-500 mt-2 text-sm max-w-[250px]">Adicione itens do catálogo para iniciar o pedido.</p>
+        <h2 className="text-sm font-black text-slate-900 uppercase tracking-[0.3em]">Cesta Vazia</h2>
+        <p className="text-slate-400 mt-3 text-[10px] font-bold uppercase tracking-widest max-w-[220px]">Adicione itens do catálogo para iniciar seu pedido.</p>
       </div>
     );
   }
 
   return (
-    <div className="flex flex-col h-full bg-slate-50">
-      <div className="glass-header px-6 py-4 sticky top-0 z-20 flex justify-between items-center">
+    <div className="flex flex-col bg-slate-50 relative">
+      
+      {/* Header Fixo (Sticky) de Conferência - Fica por cima da lista */}
+      <div className="bg-white px-6 py-5 sticky top-0 z-30 flex justify-between items-center border-b border-slate-200 shadow-sm transition-shadow">
         <div>
-          <h2 className="text-lg font-bold text-slate-800">Conferência</h2>
-          <p className="text-xs text-slate-500 font-medium">{cart.length} itens listados</p>
+          <h2 className="text-sm font-black text-slate-900 uppercase tracking-widest">Conferência</h2>
+          <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-0.5">{cart.length} itens ativos</p>
         </div>
         <div className="text-right">
-          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-0.5">Subtotal</p>
-          <p className="text-xl font-bold text-slate-900">R$ {total.toFixed(2).replace('.', ',')}</p>
+           <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-0.5">Subtotal</p>
+           <p className="text-xl font-black text-slate-900 tracking-tighter">R$ {total.toFixed(2).replace('.', ',')}</p>
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto p-4 space-y-4 pb-48 scrollbar-hide">
+      {/* Conteúdo da Cesta - Utiliza a rolagem do pai para permitir o efeito sticky */}
+      {/* Reduzido de p-4 para p-3 e de space-y-3 para space-y-1.5 */}
+      <div className="p-3 space-y-1.5 pb-32">
+        
+        {/* Seção de Vendedora */}
         {!lastOrder && (
-          <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
-            <div className="flex items-center gap-3 mb-4">
-              <div className="w-8 h-8 bg-slate-100 rounded-lg flex items-center justify-center text-slate-600">
-                <User className="w-4 h-4" />
+          <div className="mb-2 animate-in fade-in duration-500">
+            <div className="bg-white p-4 rounded-none border border-slate-100 shadow-sm">
+              <div className="flex items-center gap-2 mb-3 px-1">
+                <User className="w-3.5 h-3.5 text-red-500" />
+                <p className="text-[10px] font-black text-slate-800 uppercase tracking-widest">Escolha sua Vendedora</p>
               </div>
-              <p className="text-sm font-bold text-slate-800 uppercase">Selecione o Vendedor</p>
-            </div>
-            <div className="grid grid-cols-2 gap-2">
-              {sellers.filter(s => s.active).map(seller => (
-                <button
-                  key={seller.id}
-                  onClick={() => setSelectedSeller(seller)}
-                  className={`px-3 py-2.5 rounded-lg border text-left transition-all ${
-                    selectedSeller?.id === seller.id 
-                    ? 'bg-red-50 border-red-200 text-red-700 ring-1 ring-red-200' 
-                    : 'bg-slate-50 border-slate-100 text-slate-500 hover:bg-slate-100'
-                  }`}
-                >
-                  <p className="text-xs font-bold truncate">{seller.name}</p>
-                  <div className="flex items-center gap-1 mt-0.5">
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
-                    <p className="text-[9px] font-medium opacity-80">Online</p>
-                  </div>
-                </button>
-              ))}
+              <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
+                {sellers.filter(s => s.active).map(seller => (
+                  <button
+                    key={seller.id}
+                    onClick={() => setSelectedSeller(seller)}
+                    className={`px-4 py-2.5 rounded-none border-2 whitespace-nowrap transition-all ${
+                      selectedSeller?.id === seller.id 
+                      ? 'bg-red-50 border-red-500 text-red-700 ring-2 ring-red-100' 
+                      : 'bg-slate-50 border-slate-100 text-slate-400 hover:bg-white'
+                    }`}
+                  >
+                    <p className="text-[10px] font-black uppercase tracking-widest">{seller.name}</p>
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
         )}
 
         {pdfError && (
-          <div className="bg-orange-50 border border-orange-100 p-4 rounded-xl flex items-center gap-3 text-orange-600">
-            <AlertTriangle className="w-5 h-5 shrink-0" />
-            <p className="text-xs font-medium">{pdfError}</p>
+          <div className="bg-orange-50 border border-orange-100 p-4 rounded-none flex items-center gap-3 text-orange-600 mb-2">
+            <AlertTriangle className="w-4 h-4 shrink-0" />
+            <p className="text-[9px] font-bold uppercase tracking-widest leading-relaxed">{pdfError}</p>
           </div>
         )}
 
-        <div className="space-y-3">
-           {cart.map(item => {
-            const itemPrice = (item.onSale && item.salePrice) ? item.salePrice : item.price;
+        {/* Lista de Itens que passam por trás do header */}
+        <div className="space-y-1.5">
+          {cart.map(item => {
+            const isEditing = editingPriceId === item.id;
             return (
-              <div key={item.id} className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex gap-4 items-center">
+              /* Compactado de p-4 para px-4 py-2.5 (Slim Card) */
+              <div key={item.id} className="bg-white px-4 py-2.5 rounded-none border border-slate-100 shadow-sm flex items-center gap-4 transition-all hover:border-slate-200 animate-in fade-in slide-in-from-bottom-2">
                 <div className="flex-1 min-w-0">
-                  <h3 className="font-semibold text-xs text-slate-800 uppercase leading-snug mb-1">{item.description}</h3>
-                  <p className="text-[10px] text-slate-400 font-medium mb-2">Unit: R$ {itemPrice.toFixed(2).replace('.', ',')}</p>
-                  <div className="flex items-center justify-between">
-                     <p className="text-sm font-bold text-slate-900">R$ {(itemPrice * item.quantity).toFixed(2).replace('.', ',')}</p>
-                     
-                     <div className="flex items-center bg-slate-50 rounded-lg border border-slate-100 h-7">
-                        <button onClick={() => updateQuantity(item.id, -1)} className="px-2 h-full text-slate-400 hover:text-red-600"><Minus className="w-3 h-3" /></button>
-                        <span className="text-xs font-bold text-slate-800 min-w-[20px] text-center">{item.quantity}</span>
-                        <button onClick={() => updateQuantity(item.id, 1)} className="px-2 h-full text-slate-400 hover:text-red-600"><Plus className="w-3 h-3" /></button>
-                     </div>
+                  <div className="flex items-start justify-between">
+                     <h3 className="font-black text-[11px] text-slate-800 uppercase leading-snug truncate pr-4">{item.description}</h3>
+                     {!lastOrder && (
+                        <button onClick={() => removeFromCart(item.id)} className="text-slate-200 hover:text-red-500 transition-colors">
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                     )}
+                  </div>
+                  
+                  {/* Reduzido mt-3 para mt-1.5 */}
+                  <div className="flex items-center justify-between mt-1.5">
+                    <div className="flex items-center gap-3">
+                      {isEditing ? (
+                        <div className="flex items-center bg-red-50 border border-red-100 rounded-none px-2 py-0.5">
+                          <input 
+                            autoFocus
+                            type="text"
+                            className="w-14 bg-transparent outline-none text-[11px] font-black text-red-700"
+                            defaultValue={item.price.toFixed(2).replace('.', ',')}
+                            onBlur={(e) => {
+                              const val = parseFloat(e.target.value.replace(',', '.'));
+                              if (!isNaN(val) && onUpdatePrice) onUpdatePrice(item.id, val);
+                              setEditingPriceId(null);
+                            }}
+                          />
+                        </div>
+                      ) : (
+                        <button 
+                          onClick={() => !lastOrder && setEditingPriceId(item.id)}
+                          className="text-[10px] font-black text-slate-400 hover:text-red-500 flex items-center gap-1"
+                        >
+                          R$ {item.price.toFixed(2).replace('.', ',')}
+                          <Edit3 className="w-2.5 h-2.5 opacity-30" />
+                        </button>
+                      )}
+                      <span className="text-[10px] font-black text-slate-900 tracking-tight">
+                        Sub: R$ {(item.price * item.quantity).toFixed(2).replace('.', ',')}
+                      </span>
+                    </div>
+
+                    <div className="flex items-center bg-slate-50 rounded-none border border-slate-100 h-7 px-1">
+                      <button onClick={() => updateQuantity(item.id, -1)} className="w-6 h-full text-slate-400 hover:text-red-600 flex items-center justify-center"><Minus className="w-2.5 h-2.5" /></button>
+                      <span className="text-[10px] font-black text-slate-800 min-w-[18px] text-center">{item.quantity}</span>
+                      <button onClick={() => updateQuantity(item.id, 1)} className="w-6 h-full text-slate-400 hover:text-red-600 flex items-center justify-center"><Plus className="w-2.5 h-2.5" /></button>
+                    </div>
                   </div>
                 </div>
-                {!lastOrder && (
-                  <button onClick={() => removeFromCart(item.id)} className="p-2 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all">
-                    <Trash2 className="w-4 h-4" />
-                  </button>
-                )}
               </div>
             );
-           })}
+          })}
+        </div>
+
+        {/* Painel de Finalização no Final da Lista */}
+        <div className="mt-8 mb-20">
+          {!lastOrder ? (
+            <div className="bg-white border-t-4 border-red-600 p-6 rounded-none shadow-2xl animate-in slide-in-from-bottom-5">
+               <div className="flex items-end justify-between mb-6 px-1">
+                  <div>
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-1.5">Resumo Final</p>
+                    <p className="text-3xl font-black text-slate-900 tracking-tighter leading-none">R$ {total.toFixed(2).replace('.', ',')}</p>
+                  </div>
+                  {selectedSeller && (
+                    <div className="flex items-center gap-2 bg-emerald-50 px-3 py-1.5 rounded-none border border-emerald-100">
+                      <div className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse" />
+                      <span className="text-[8px] font-black text-emerald-600 uppercase tracking-widest">{selectedSeller.name.split(' ')[0]}</span>
+                    </div>
+                  )}
+               </div>
+
+               <button 
+                  onClick={handleGenerateOrder}
+                  disabled={isGenerating || !selectedSeller}
+                  className={`w-full py-5 rounded-none font-black text-[12px] uppercase tracking-[0.2em] flex items-center justify-center gap-4 transition-all relative overflow-hidden group ${
+                    isGenerating || !selectedSeller 
+                    ? 'bg-slate-100 text-slate-300 cursor-not-allowed border border-slate-200' 
+                    : 'bg-slate-900 text-white hover:bg-black shadow-2xl shadow-slate-200 active:scale-[0.98]'
+                  }`}
+                >
+                  {isGenerating ? <Loader2 className="w-5 h-5 animate-spin" /> : (
+                    <>
+                      <Sparkles className="w-4 h-4 group-hover:rotate-12 transition-transform text-red-500" />
+                      Gerar Pedido Agora
+                      <ArrowRight className="w-4 h-4" />
+                    </>
+                  )}
+                  {!selectedSeller && !isGenerating && (
+                     <span className="absolute inset-0 flex items-center justify-center bg-slate-50/50 text-[9px] font-black uppercase tracking-widest text-slate-500">Selecione uma vendedora</span>
+                  )}
+                </button>
+            </div>
+          ) : (
+            /* Estado de Sucesso */
+            <div className="bg-white p-8 rounded-none border border-emerald-100 shadow-2xl animate-in zoom-in-95 duration-500">
+              <div className="text-center mb-6">
+                <div className="w-14 h-14 bg-emerald-50 text-emerald-500 rounded-none flex items-center justify-center mx-auto mb-4 shadow-inner">
+                  <CheckCircle2 className="w-8 h-8" />
+                </div>
+                <h3 className="text-xs font-black text-slate-900 uppercase tracking-widest text-center">Pedido Gerado com Sucesso</h3>
+                <p className="text-[10px] text-slate-400 font-bold uppercase mt-2 tracking-widest text-center">ID: #{lastOrder.id}</p>
+              </div>
+              
+              <div className="grid grid-cols-2 gap-4">
+                 <button 
+                   onClick={() => handleShareAndDownloadPDF(lastOrder)}
+                   className="py-4 bg-slate-900 text-white rounded-none font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 shadow-lg"
+                 >
+                   <Share2 className="w-4 h-4" /> PDF
+                 </button>
+                 <button 
+                   onClick={openWhatsAppWithDetails}
+                   className="py-4 bg-emerald-600 text-white rounded-none font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 shadow-lg"
+                 >
+                   <MessageSquare className="w-4 h-4" /> WhatsApp
+                 </button>
+              </div>
+              
+              <button 
+                onClick={() => onOrderCreated(lastOrder)}
+                className="w-full text-slate-400 hover:text-red-500 pt-6 text-[10px] font-black uppercase tracking-widest transition-all"
+              >
+                Voltar ao Catálogo
+              </button>
+            </div>
+          )}
         </div>
       </div>
 
-      <div className="fixed bottom-24 left-1/2 -translate-x-1/2 w-[90%] max-w-[400px] p-5 bg-white border border-slate-200 rounded-2xl shadow-xl z-40">
-        {!lastOrder ? (
-          <div className="space-y-3">
-             <div className="flex justify-between items-end pb-3 border-b border-slate-100">
-                <p className="text-xs font-bold text-slate-500 uppercase">Total Final</p>
-                <p className="text-2xl font-bold text-slate-900">R$ {total.toFixed(2).replace('.', ',')}</p>
-            </div>
-            <button 
-              onClick={handleGenerateOrder}
-              disabled={isGenerating || !selectedSeller}
-              className={`w-full py-3 rounded-xl font-bold text-xs uppercase tracking-wide flex items-center justify-center gap-2 transition-all ${
-                isGenerating || !selectedSeller ? 'bg-slate-200 text-slate-400 cursor-not-allowed' : 'bg-red-600 text-white hover:bg-red-700 shadow-md shadow-red-200'
-              }`}
-            >
-              {isGenerating ? <Loader2 className="w-4 h-4 animate-spin" /> : (
-                <>
-                  <FileText className="w-4 h-4" /> Finalizar Pedido
-                </>
-              )}
-            </button>
-          </div>
-        ) : (
-          <div className="space-y-3 animate-in zoom-in-95 duration-300">
-            <div className="text-center pb-2">
-              <div className="inline-flex items-center justify-center w-10 h-10 bg-emerald-100 text-emerald-600 rounded-full mb-2">
-                <CheckCircle2 className="w-6 h-6" />
-              </div>
-              <h3 className="text-sm font-bold text-slate-800 uppercase">Pedido Gerado!</h3>
-              <p className="text-xs text-slate-500">Envie o comprovante para o vendedor.</p>
-            </div>
-            
-            <button 
-              onClick={() => handleShareAndDownloadPDF(lastOrder)}
-              className="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold text-xs uppercase tracking-wide flex items-center justify-center gap-2 shadow-sm"
-            >
-              <Share2 className="w-4 h-4" /> Compartilhar PDF
-            </button>
-
-            <button 
-              onClick={openWhatsAppWithDetails}
-              className="w-full py-3 bg-emerald-50 text-emerald-600 border border-emerald-200 hover:bg-emerald-100 rounded-xl font-bold text-xs uppercase tracking-wide flex items-center justify-center gap-2 transition-colors"
-            >
-              <MessageSquare className="w-4 h-4" /> Enviar no WhatsApp
-            </button>
-            
-            <button 
-              onClick={() => onOrderCreated(lastOrder)}
-              className="w-full py-2 text-slate-400 hover:text-slate-600 text-[10px] font-bold uppercase tracking-widest transition-colors"
-            >
-              Voltar ao Início
-            </button>
-          </div>
-        )}
-      </div>
     </div>
   );
 };

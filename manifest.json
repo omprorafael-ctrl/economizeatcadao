@@ -8,19 +8,34 @@
       "src": "https://cdn-icons-png.flaticon.com/512/3081/3081840.png",
       "type": "image/png",
       "sizes": "192x192",
-      "purpose": "any maskable"
+      "purpose": "any"
+    },
+    {
+      "src": "https://cdn-icons-png.flaticon.com/512/3081/3081840.png",
+      "type": "image/png",
+      "sizes": "192x192",
+      "purpose": "maskable"
     },
     {
       "src": "https://cdn-icons-png.flaticon.com/512/3081/3081840.png",
       "type": "image/png",
       "sizes": "512x512",
-      "purpose": "any maskable"
+      "purpose": "any"
     }
   ],
   "start_url": "/",
-  "background_color": "#020617",
+  "background_color": "#ffffff",
   "display": "standalone",
   "scope": "/",
-  "theme_color": "#2563eb",
-  "orientation": "portrait"
+  "theme_color": "#dc2626",
+  "orientation": "portrait",
+  "categories": ["business", "shopping", "productivity"],
+  "shortcuts": [
+    {
+      "name": "Ver Catálogo",
+      "short_name": "Catálogo",
+      "url": "/",
+      "icons": [{ "src": "https://cdn-icons-png.flaticon.com/512/3081/3081840.png", "sizes": "192x192" }]
+    }
+  ]
 }
