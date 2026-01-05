@@ -20,7 +20,8 @@ import {
   MapPin,
   Activity,
   Ban,
-  UserCheck
+  UserCheck,
+  AlertTriangle
 } from 'lucide-react';
 import { db } from '../../firebaseConfig';
 import { doc, updateDoc } from 'firebase/firestore';
@@ -38,7 +39,6 @@ const OrderList: React.FC<OrderListProps> = ({ orders, setOrders, sellers }) => 
   const updateStatus = async (id: string, newStatus: OrderStatus) => {
     try {
       await updateDoc(doc(db, 'orders', id), { status: newStatus });
-      // O onSnapshot cuidará do estado global, mas atualizamos localmente se necessário para rapidez
     } catch (error) {
       console.error("Erro ao atualizar status:", error);
     }
@@ -197,6 +197,16 @@ const OrderList: React.FC<OrderListProps> = ({ orders, setOrders, sellers }) => 
                   <p className="text-sm font-black text-red-600 uppercase">{selectedOrder.sellerName || 'Nenhuma atribuída'}</p>
                 </div>
               </div>
+
+              {selectedOrder.status === OrderStatus.CANCELLED && selectedOrder.cancelReason && (
+                <div className="p-6 bg-red-50 border border-red-100 rounded-3xl flex items-start gap-4">
+                  <AlertTriangle className="w-5 h-5 text-red-600 shrink-0" />
+                  <div>
+                    <p className="text-[10px] font-black text-red-600 uppercase tracking-widest">Justificativa de Cancelamento</p>
+                    <p className="text-sm font-bold text-red-900 mt-1">{selectedOrder.cancelReason}</p>
+                  </div>
+                </div>
+              )}
 
               <div className="border border-slate-100 rounded-3xl overflow-hidden">
                 <table className="w-full text-left">

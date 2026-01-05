@@ -20,7 +20,9 @@ import {
   ArrowUpRight,
   History,
   MessageCircle,
-  Briefcase
+  Briefcase,
+  Loader2,
+  AlertTriangle
 } from 'lucide-react';
 import { db } from '../../firebaseConfig';
 import { doc, updateDoc } from 'firebase/firestore';
@@ -36,6 +38,7 @@ const SellerDashboard: React.FC<SellerDashboardProps> = ({ user, orders, clients
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [activeTab, setActiveTab] = useState<'portfolio' | 'history'>('portfolio');
+  const [updatingId, setUpdatingId] = useState<string | null>(null);
   
   // Filtra pedidos atribuídos a esta vendedora
   const myOrders = orders.filter(o => o.sellerId === user.id);
@@ -59,20 +62,44 @@ const SellerDashboard: React.FC<SellerDashboardProps> = ({ user, orders, clients
   );
 
   const updateStatus = async (id: string, newStatus: OrderStatus) => {
-    // Se for faturar, pede confirmação
+    let cancelReason = '';
+
+    // Validação de Faturamento
     if (newStatus === OrderStatus.INVOICED) {
       const confirmed = window.confirm("O cliente formalizou a compra? Deseja finalizar e faturar este pedido agora?");
       if (!confirmed) return;
     }
 
+    // Validação de Cancelamento com Motivo
+    if (newStatus === OrderStatus.CANCELLED) {
+      const reason = window.prompt("⚠️ ATENÇÃO: Informe o motivo do cancelamento para prosseguir:");
+      if (!reason || reason.trim() === '') {
+        alert("O cancelamento exige a descrição de um motivo.");
+        return;
+      }
+      cancelReason = reason.trim();
+    }
+
+    setUpdatingId(id);
     try {
-      await updateDoc(doc(db, 'orders', id), { status: newStatus });
+      const orderRef = doc(db, 'orders', id);
+      const updateData: any = { status: newStatus };
+      
+      if (newStatus === OrderStatus.CANCELLED) {
+        updateData.cancelReason = cancelReason;
+      }
+
+      await updateDoc(orderRef, updateData);
+      
+      // Se o modal estiver aberto para este pedido, fecha ele para atualizar a visão
       if (selectedOrder?.id === id) {
-        setSelectedOrder(prev => prev ? { ...prev, status: newStatus } : null);
+        setSelectedOrder(null);
       }
     } catch (error) {
       console.error("Erro ao atualizar status:", error);
-      alert("Erro ao atualizar o pedido. Tente novamente.");
+      alert("Erro ao atualizar o pedido. Verifique sua conexão.");
+    } finally {
+      setUpdatingId(null);
     }
   };
 
@@ -160,7 +187,7 @@ const SellerDashboard: React.FC<SellerDashboardProps> = ({ user, orders, clients
           
           <div className="flex items-center justify-between px-2">
             <h2 className="text-[11px] font-black text-slate-400 uppercase tracking-[0.3em]">
-              {activeTab === 'portfolio' ? 'Aguardando Faturamento' : 'Histórico de Atividades'}
+              {activeTab === 'portfolio' ? 'Pedidos Ativos' : 'Finalizados'}
             </h2>
           </div>
 
@@ -169,6 +196,7 @@ const SellerDashboard: React.FC<SellerDashboardProps> = ({ user, orders, clients
               displayedOrders.map(order => {
                 const status = statusMap[order.status] || statusMap[OrderStatus.GENERATED];
                 const client = getClientInfo(order.clientId);
+                const isUpdating = updatingId === order.id;
 
                 return (
                   <div 
@@ -177,7 +205,7 @@ const SellerDashboard: React.FC<SellerDashboardProps> = ({ user, orders, clients
                   >
                     <div className="flex items-center gap-5">
                       <div className={`w-14 h-14 rounded-2xl flex items-center justify-center border-2 transition-colors shrink-0 ${status.color}`}>
-                        {React.createElement(status.icon, { className: "w-7 h-7" })}
+                        {isUpdating ? <Loader2 className="w-7 h-7 animate-spin" /> : React.createElement(status.icon, { className: "w-7 h-7" })}
                       </div>
                       <div className="min-w-0">
                         <div className="flex items-center gap-2 flex-wrap">
@@ -218,6 +246,7 @@ const SellerDashboard: React.FC<SellerDashboardProps> = ({ user, orders, clients
                          {activeTab === 'portfolio' && (
                            <div className="flex items-center gap-1.5 bg-slate-50/50 p-1 rounded-2xl border border-slate-100 flex-1 sm:flex-none">
                              <ActionBtn 
+                               disabled={isUpdating}
                                onClick={() => updateStatus(order.id, OrderStatus.IN_PROGRESS)} 
                                label="Andamento" 
                                icon={Activity} 
@@ -225,6 +254,7 @@ const SellerDashboard: React.FC<SellerDashboardProps> = ({ user, orders, clients
                                color="text-amber-600 bg-amber-50 border-amber-100" 
                              />
                              <ActionBtn 
+                               disabled={isUpdating}
                                onClick={() => updateStatus(order.id, OrderStatus.INVOICED)} 
                                label="Faturar" 
                                icon={Check} 
@@ -232,6 +262,7 @@ const SellerDashboard: React.FC<SellerDashboardProps> = ({ user, orders, clients
                                color="text-emerald-600 bg-emerald-50 border-emerald-100" 
                              />
                              <ActionBtn 
+                               disabled={isUpdating}
                                onClick={() => updateStatus(order.id, OrderStatus.CANCELLED)} 
                                label="Cancelar" 
                                icon={Ban} 
@@ -318,6 +349,17 @@ const SellerDashboard: React.FC<SellerDashboardProps> = ({ user, orders, clients
                 )}
               </div>
 
+              {/* Alerta de Cancelamento */}
+              {selectedOrder.status === OrderStatus.CANCELLED && selectedOrder.cancelReason && (
+                <div className="p-6 bg-red-50 border border-red-100 rounded-3xl flex items-start gap-4 animate-in fade-in">
+                  <AlertTriangle className="w-5 h-5 text-red-600 shrink-0 mt-1" />
+                  <div>
+                    <p className="text-[10px] font-black text-red-600 uppercase tracking-widest">Motivo do Cancelamento</p>
+                    <p className="text-sm font-bold text-red-900 mt-1">{selectedOrder.cancelReason}</p>
+                  </div>
+                </div>
+              )}
+
               <div className="space-y-4">
                 <div className="flex items-center justify-between px-1">
                   <h4 className="text-[10px] font-black text-slate-900 uppercase tracking-widest">Listagem de Produtos</h4>
@@ -352,16 +394,18 @@ const SellerDashboard: React.FC<SellerDashboardProps> = ({ user, orders, clients
             {selectedOrder.status !== OrderStatus.INVOICED && selectedOrder.status !== OrderStatus.CANCELLED && (
               <div className="p-8 bg-white border-t border-slate-100 flex items-center justify-center gap-4">
                 <button 
+                  disabled={updatingId === selectedOrder.id}
                   onClick={() => updateStatus(selectedOrder.id, OrderStatus.IN_PROGRESS)}
-                  className="flex-1 py-4 bg-slate-100 text-slate-500 hover:bg-slate-200 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all"
+                  className="flex-1 py-4 bg-slate-100 text-slate-500 hover:bg-slate-200 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all disabled:opacity-50"
                 >
-                  Andamento
+                  {updatingId === selectedOrder.id ? <Loader2 className="w-4 h-4 animate-spin mx-auto" /> : 'Andamento'}
                 </button>
                 <button 
+                  disabled={updatingId === selectedOrder.id}
                   onClick={() => updateStatus(selectedOrder.id, OrderStatus.INVOICED)}
-                  className="flex-[2] py-4 bg-red-600 text-white hover:bg-red-700 rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-xl shadow-red-100 transition-all flex items-center justify-center gap-2"
+                  className="flex-[2] py-4 bg-red-600 text-white hover:bg-red-700 rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-xl shadow-red-100 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
                 >
-                  Confirmar Faturamento <ArrowUpRight className="w-4 h-4" />
+                  {updatingId === selectedOrder.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <>Confirmar Faturamento <ArrowUpRight className="w-4 h-4" /></>}
                 </button>
               </div>
             )}
@@ -372,12 +416,13 @@ const SellerDashboard: React.FC<SellerDashboardProps> = ({ user, orders, clients
   );
 };
 
-const ActionBtn = ({ onClick, label, icon: Icon, active, color }: any) => (
+const ActionBtn = ({ onClick, label, icon: Icon, active, color, disabled }: any) => (
   <button 
+    disabled={disabled}
     onClick={(e) => { e.stopPropagation(); onClick(); }}
     className={`flex items-center gap-2 px-3.5 py-2.5 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all border ${
       active ? color : 'text-slate-400 bg-white border-slate-100 hover:bg-white hover:border-slate-300'
-    }`}
+    } disabled:opacity-30 disabled:cursor-not-allowed`}
     title={label}
   >
     <Icon className="w-3.5 h-3.5" />

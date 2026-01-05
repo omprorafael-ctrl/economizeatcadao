@@ -64,6 +64,7 @@ export interface Order {
   items: OrderItem[];
   sellerId?: string;
   sellerName?: string;
+  cancelReason?: string;
 }
 
 export interface CartItem extends Product {
