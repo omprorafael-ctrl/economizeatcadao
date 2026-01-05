@@ -15,7 +15,7 @@ import {
   ArrowRight,
   AlertCircle,
   CheckCircle2,
-  ShieldAlert
+  ShieldCheck
 } from 'lucide-react';
 
 const Login: React.FC<{ onLogin: (user: User) => void }> = () => {
@@ -60,9 +60,9 @@ const Login: React.FC<{ onLogin: (user: User) => void }> = () => {
     } catch (err: any) {
       console.error(err);
       if (err.code === 'auth/invalid-credential' || err.code === 'auth/user-not-found' || err.code === 'auth/wrong-password') {
-        setError("E-mail ou senha incorretos.");
+        setError("Credenciais inválidas. Verifique e tente novamente.");
       } else {
-        setError("Ocorreu um erro ao acessar o portal.");
+        setError("Erro de conexão com o servidor.");
       }
     } finally {
       setLoading(false);
@@ -71,108 +71,102 @@ const Login: React.FC<{ onLogin: (user: User) => void }> = () => {
 
   const handleForgotPassword = async () => {
     if (!email) {
-      setError("Digite seu e-mail para receber o link de recuperação.");
+      setError("Digite seu e-mail para recuperar a senha.");
       return;
     }
     try {
       await sendPasswordResetEmail(auth, email);
-      setSuccess("E-mail de recuperação enviado com sucesso!");
+      setSuccess("Link de recuperação enviado para seu e-mail.");
     } catch (err) {
-      setError("Erro ao enviar e-mail de recuperação.");
+      setError("Não foi possível enviar o e-mail.");
     }
   };
 
   return (
-    <div className="min-h-screen bg-[#0a0a0a] flex items-center justify-center p-4 relative overflow-hidden">
-      <div className="absolute top-[-10%] left-[-10%] w-[60%] h-[60%] bg-red-600/10 rounded-full blur-[160px] animate-pulse" />
-      <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] bg-orange-600/10 rounded-full blur-[140px]" />
-
-      <div className="w-full max-w-[440px] relative z-10">
-        <div className="text-center mb-10 animate-in fade-in slide-in-from-top-4 duration-700">
-          <div className="inline-flex items-center justify-center w-20 h-20 bg-gradient-to-tr from-red-700 to-orange-500 rounded-3xl shadow-2xl shadow-red-500/20 mb-6 rotate-6 transition-transform hover:rotate-0">
-            <LogIn className="w-10 h-10 text-white" />
+    <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4 relative overflow-hidden">
+      {/* Background Decor */}
+      <div className="absolute top-0 left-0 w-full h-1/2 bg-slate-100 -skew-y-6 transform origin-top-left z-0" />
+      
+      <div className="w-full max-w-[400px] relative z-10 bg-white p-8 md:p-10 rounded-2xl shadow-xl border border-slate-100">
+        <div className="text-center mb-8">
+          <div className="inline-flex items-center justify-center w-14 h-14 bg-red-600 rounded-xl shadow-lg shadow-red-200 mb-4">
+            <LogIn className="w-7 h-7 text-white" />
           </div>
-          <h1 className="text-5xl font-black tracking-tighter text-white italic mb-2">
-            ATACADÃO
-          </h1>
-          <p className="text-red-400 font-bold uppercase tracking-[0.3em] text-[10px]">Portal de Vendas & Logística</p>
+          <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Portal Atacadão</h1>
+          <p className="text-slate-500 text-xs uppercase tracking-wider font-medium mt-1">Acesso Restrito B2B</p>
         </div>
 
-        <div className="bg-white/5 backdrop-blur-3xl p-8 lg:p-10 rounded-[40px] shadow-[0_32px_64px_rgba(0,0,0,0.5)] border border-white/10 animate-in zoom-in-95 duration-500">
-          
-          <div className="flex items-center gap-3 mb-8 p-4 bg-red-500/10 rounded-2xl border border-red-500/20">
-            <ShieldAlert className="w-5 h-5 text-red-400" />
-            <p className="text-[10px] font-bold text-red-300 uppercase tracking-widest leading-tight">Identifique-se para gerenciar seus pedidos</p>
+        {error && (
+          <div className="mb-6 p-3 bg-red-50 border border-red-100 rounded-lg flex items-start gap-3 text-red-600 text-xs font-medium">
+            <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
+            <p>{error}</p>
+          </div>
+        )}
+        {success && (
+          <div className="mb-6 p-3 bg-emerald-50 border border-emerald-100 rounded-lg flex items-start gap-3 text-emerald-600 text-xs font-medium">
+            <CheckCircle2 className="w-4 h-4 flex-shrink-0 mt-0.5" />
+            <p>{success}</p>
+          </div>
+        )}
+
+        <form onSubmit={handleSubmit} className="space-y-5">
+          <div className="space-y-1.5">
+            <label className="text-xs font-bold text-slate-700 uppercase">E-mail Corporativo</label>
+            <div className="relative">
+              <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+              <input
+                type="email"
+                placeholder="nome@empresa.com"
+                className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500 transition-all text-sm font-medium text-slate-800 placeholder:text-slate-400"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+              />
+            </div>
           </div>
 
-          {error && (
-            <div className="mb-6 p-4 bg-red-500/10 border border-red-500/20 rounded-2xl flex items-start gap-3 text-red-400 text-sm animate-in slide-in-from-top-2">
-              <AlertCircle className="w-5 h-5 flex-shrink-0 mt-0.5" />
-              <p className="font-medium leading-tight">{error}</p>
+          <div className="space-y-1.5">
+            <div className="flex justify-between items-center">
+              <label className="text-xs font-bold text-slate-700 uppercase">Senha</label>
+              <button 
+                type="button" 
+                onClick={handleForgotPassword}
+                className="text-[10px] font-bold text-red-600 hover:text-red-700 hover:underline"
+              >
+                Esqueci minha senha
+              </button>
             </div>
-          )}
-          {success && (
-            <div className="mb-6 p-4 bg-emerald-500/10 border border-emerald-500/20 rounded-2xl flex items-start gap-3 text-emerald-400 text-sm animate-in slide-in-from-top-2">
-              <CheckCircle2 className="w-5 h-5 flex-shrink-0 mt-0.5" />
-              <p className="font-medium leading-tight">{success}</p>
+            <div className="relative">
+              <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+              <input
+                type="password"
+                placeholder="••••••••"
+                className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500 transition-all text-sm font-medium text-slate-800 placeholder:text-slate-400"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+              />
             </div>
-          )}
+          </div>
 
-          <form onSubmit={handleSubmit} className="space-y-6">
-            <div className="space-y-1">
-              <label className="text-[10px] font-black uppercase text-slate-400 tracking-[0.2em] ml-1">Usuário / E-mail</label>
-              <div className="relative group">
-                <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500 group-focus-within:text-red-500 transition-colors" />
-                <input
-                  type="email"
-                  placeholder="acesso@atcadao.com"
-                  className="w-full pl-12 pr-4 py-4 bg-white/10 border border-white/5 rounded-2xl outline-none focus:ring-4 focus:ring-red-500/30 focus:bg-white/20 transition-all font-bold text-white placeholder:text-slate-600"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  required
-                />
-              </div>
-            </div>
+          <button
+            type="submit"
+            disabled={loading}
+            className="w-full bg-red-600 hover:bg-red-700 text-white py-3 rounded-lg font-bold text-xs uppercase tracking-wide flex items-center justify-center gap-2 shadow-md shadow-red-100 active:scale-[0.98] transition-all disabled:opacity-70 disabled:cursor-not-allowed mt-2"
+          >
+            {loading ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : (
+              <>
+                Acessar Painel <ArrowRight className="w-4 h-4" />
+              </>
+            )}
+          </button>
+        </form>
 
-            <div className="space-y-1">
-              <div className="flex justify-between items-center px-1">
-                <label className="text-[10px] font-black uppercase text-slate-400 tracking-[0.2em]">Senha</label>
-                <button 
-                  type="button" 
-                  onClick={handleForgotPassword}
-                  className="text-[10px] font-bold text-red-400 hover:text-red-300 transition-colors"
-                >
-                  RECUPERAR ACESSO
-                </button>
-              </div>
-              <div className="relative group">
-                <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500 group-focus-within:text-red-500 transition-colors" />
-                <input
-                  type="password"
-                  placeholder="••••••••"
-                  className="w-full pl-12 pr-4 py-4 bg-white/10 border border-white/5 rounded-2xl outline-none focus:ring-4 focus:ring-red-500/30 focus:bg-white/20 transition-all font-bold text-white placeholder:text-slate-600"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  required
-                />
-              </div>
-            </div>
-
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full bg-gradient-to-r from-red-600 to-red-700 hover:from-red-500 hover:to-red-600 text-white py-5 rounded-2xl font-black text-sm tracking-[0.2em] flex items-center justify-center gap-3 shadow-2xl shadow-red-900/40 active:scale-[0.98] transition-all disabled:opacity-50 group"
-            >
-              {loading ? (
-                <Loader2 className="w-6 h-6 animate-spin" />
-              ) : (
-                <>
-                  ENTRAR NO SISTEMA
-                  <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
-                </>
-              )}
-            </button>
-          </form>
+        <div className="mt-8 pt-6 border-t border-slate-100 flex items-center justify-center gap-2 text-slate-400">
+           <ShieldCheck className="w-4 h-4" />
+           <span className="text-[10px] uppercase font-bold tracking-widest">Ambiente Seguro</span>
         </div>
       </div>
     </div>

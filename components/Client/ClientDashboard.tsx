@@ -55,90 +55,89 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({
   const promoItems = products.filter(p => p.onSale && p.active);
 
   return (
-    <div className="flex flex-col h-screen bg-black max-w-lg mx-auto shadow-[0_0_100px_rgba(220,38,38,0.1)] overflow-hidden relative font-sans text-white border-x border-white/5">
-      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full h-[300px] bg-red-600/10 blur-[120px] pointer-events-none" />
-
-      {/* Header Premium Dark */}
-      <header className="bg-black/40 backdrop-blur-3xl border-b border-white/5 p-8 sticky top-0 z-30">
-        <div className="flex items-center justify-between mb-6">
-          <div className="flex items-center gap-2">
-            <div className="w-9 h-9 bg-red-600 rounded-xl flex items-center justify-center rotate-3 shadow-[0_0_20px_rgba(220,38,38,0.4)]">
-              <PackageSearch className="w-5 h-5 text-white" />
+    <div className="flex flex-col h-screen bg-slate-50 max-w-lg mx-auto shadow-2xl shadow-slate-200 overflow-hidden relative font-sans text-slate-800 border-x border-slate-200">
+      
+      {/* Header Clean Profissional */}
+      <header className="glass-header px-6 py-4 sticky top-0 z-30">
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 bg-red-600 rounded-lg flex items-center justify-center shadow-sm">
+              <PackageSearch className="w-4 h-4 text-white" />
             </div>
-            <h1 className="text-2xl font-black italic tracking-tighter text-white uppercase">ATACADÃO</h1>
+            <div>
+              <h1 className="text-lg font-bold text-slate-900 tracking-tight leading-none">ATACADÃO</h1>
+              <p className="text-[10px] text-slate-500 font-medium uppercase tracking-widest">Portal B2B</p>
+            </div>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2">
             <button 
               onClick={() => setShowNotifications(!showNotifications)}
-              className="p-3 bg-white/5 text-slate-400 hover:text-white rounded-2xl border border-white/5 transition-all relative"
+              className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-all relative"
             >
               <Bell className="w-5 h-5" />
               {promoItems.length > 0 && (
-                <span className="absolute top-2 right-2 w-2.5 h-2.5 bg-orange-500 rounded-full border-2 border-black animate-pulse" />
+                <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-orange-500 rounded-full border-2 border-white" />
               )}
             </button>
-            <button onClick={onLogout} className="p-3 bg-red-600/10 text-red-500 hover:bg-red-600 hover:text-white rounded-2xl border border-red-500/20 transition-all">
+            <button onClick={onLogout} className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all">
               <LogOut className="w-5 h-5" />
             </button>
           </div>
         </div>
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-5">
-            <div className="w-14 h-14 rounded-[22px] bg-gradient-to-tr from-red-600 to-red-400 p-0.5 shadow-xl shadow-red-900/20">
-              <div className="w-full h-full rounded-[20px] bg-black flex items-center justify-center font-black text-white text-xl border border-white/10">
-                {user.name.charAt(0)}
-              </div>
+        
+        <div className="flex items-center justify-between bg-white p-3 rounded-xl border border-slate-100 shadow-sm">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center text-slate-600 font-bold border border-slate-200">
+              {user.name.charAt(0)}
             </div>
             <div className="min-w-0">
-              <p className="text-[10px] font-black text-red-500 uppercase tracking-[0.3em]">Cliente Gold</p>
-              <p className="font-black text-white truncate uppercase text-lg tracking-tight italic">{user.name}</p>
+              <p className="text-xs font-semibold text-slate-900 truncate">{user.name}</p>
+              <p className="text-[10px] text-slate-500 uppercase">{user.cpfCnpj || 'CNPJ não informado'}</p>
             </div>
           </div>
           {promoItems.length > 0 && (
-            <div className="bg-orange-600/10 border border-orange-500/20 px-4 py-2 rounded-2xl flex items-center gap-2 animate-bounce">
-              <Zap className="w-4 h-4 text-orange-500 fill-orange-500" />
-              <span className="text-[10px] font-black text-orange-500 uppercase tracking-widest">{promoItems.length} Ofertas</span>
+            <div className="px-3 py-1 bg-orange-50 text-orange-600 rounded-full text-[10px] font-bold flex items-center gap-1.5 border border-orange-100">
+              <Zap className="w-3 h-3 fill-orange-500 text-orange-500" />
+              {promoItems.length} Ofertas
             </div>
           )}
         </div>
       </header>
 
-      {/* Dropdown de Notificações */}
+      {/* Dropdown Notificações Clean */}
       {showNotifications && (
-        <div className="absolute top-24 right-8 w-64 bg-[#0a0a0a] border border-white/10 rounded-[30px] shadow-2xl z-[60] overflow-hidden animate-in fade-in zoom-in-95 duration-300">
-          <div className="p-5 border-b border-white/5 bg-white/5">
-            <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">Notificações</p>
+        <div className="absolute top-20 right-4 w-64 bg-white border border-slate-100 rounded-xl shadow-xl z-[60] overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+          <div className="p-3 border-b border-slate-50 bg-slate-50/50">
+            <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wide">Novidades</p>
           </div>
-          <div className="max-h-60 overflow-y-auto p-2 scrollbar-hide">
+          <div className="max-h-60 overflow-y-auto p-1">
             {promoItems.length > 0 ? (
               promoItems.map(p => (
                 <button 
                   key={p.id}
                   onClick={() => { setActiveTab('catalog'); setShowNotifications(false); }}
-                  className="w-full p-4 hover:bg-white/5 rounded-2xl text-left transition-all border border-transparent hover:border-orange-500/20 group"
+                  className="w-full p-3 hover:bg-slate-50 rounded-lg text-left transition-all flex items-start gap-3 group"
                 >
-                  <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 bg-orange-600/10 rounded-lg flex items-center justify-center text-orange-500 group-hover:bg-orange-600 group-hover:text-white transition-all">
-                      <Zap className="w-4 h-4" />
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <p className="text-[9px] font-black text-white uppercase truncate">{p.description}</p>
-                      <p className="text-[8px] font-bold text-orange-500 uppercase mt-0.5 tracking-tighter">Preço especial ativo!</p>
-                    </div>
+                  <div className="mt-0.5 w-6 h-6 bg-orange-50 text-orange-500 rounded flex items-center justify-center shrink-0">
+                    <Zap className="w-3 h-3" />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-xs font-semibold text-slate-700 truncate group-hover:text-slate-900">{p.description}</p>
+                    <p className="text-[10px] text-slate-400 mt-0.5">Preço reduzido disponível</p>
                   </div>
                 </button>
               ))
             ) : (
-              <div className="p-8 text-center opacity-30">
-                <p className="text-[9px] font-black uppercase tracking-widest">Nenhuma nova oferta</p>
+              <div className="p-6 text-center text-slate-400">
+                <p className="text-xs">Sem notificações</p>
               </div>
             )}
           </div>
         </div>
       )}
 
-      {/* Content Area */}
-      <main className="flex-1 overflow-y-auto pb-40 scrollbar-hide relative z-10">
+      {/* Área de Conteúdo */}
+      <main className="flex-1 overflow-y-auto pb-24 scrollbar-hide bg-slate-50 relative z-10">
         {activeTab === 'catalog' && (
           <Catalog products={products} onAddToCart={addToCart} />
         )}
@@ -159,61 +158,60 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({
           <OrderHistory orders={clientOrders} />
         )}
         {activeTab === 'profile' && (
-          <div className="p-10 space-y-8 animate-in fade-in slide-in-from-bottom-8 duration-700">
-            <div className="text-center pb-10 border-b border-white/5">
-              <div className="w-28 h-28 bg-red-600/10 border-4 border-white/5 rounded-[45px] flex items-center justify-center mx-auto mb-6 shadow-2xl relative">
-                <UserCircle className="w-14 h-14 text-red-500" />
-                <div className="absolute -bottom-2 -right-2 bg-emerald-500 w-8 h-8 rounded-full border-4 border-black flex items-center justify-center">
-                  <div className="w-2 h-2 bg-white rounded-full animate-ping" />
-                </div>
+          <div className="p-6 space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+            <div className="text-center pb-6 border-b border-slate-200">
+              <div className="w-20 h-20 bg-white border border-slate-200 rounded-full flex items-center justify-center mx-auto mb-4 shadow-sm relative">
+                <UserCircle className="w-10 h-10 text-slate-400" />
               </div>
-              <h2 className="text-3xl font-black text-white italic tracking-tighter">Perfil Corporativo</h2>
-              <p className="text-slate-500 text-[10px] font-black uppercase tracking-[0.3em] mt-2">Configurações de Identidade</p>
+              <h2 className="text-lg font-bold text-slate-900">Perfil da Conta</h2>
+              <p className="text-slate-500 text-xs mt-1">Dados cadastrais da empresa</p>
             </div>
             
-            <div className="space-y-4">
-              <InfoCard label="Cadastro Nacional" value={user.cpfCnpj} />
-              <InfoCard label="E-mail Administrativo" value={user.email} />
-              <InfoCard label="Contato Direto" value={user.phone} />
-              <InfoCard label="Logradouro de Entrega" value={user.address} />
+            <div className="space-y-3">
+              <InfoCard label="Razão Social" value={user.name} />
+              <InfoCard label="CNPJ / CPF" value={user.cpfCnpj} />
+              <InfoCard label="E-mail" value={user.email} />
+              <InfoCard label="Telefone" value={user.phone} />
+              <InfoCard label="Endereço de Entrega" value={user.address} />
             </div>
 
-            <button className="w-full py-5 border border-white/5 bg-white/5 hover:bg-white/10 rounded-[28px] text-[10px] font-black uppercase tracking-[0.4em] transition-all">Editar Dados Cadastrais</button>
+            <button onClick={onLogout} className="w-full py-3 mt-4 text-red-600 bg-red-50 hover:bg-red-100 rounded-xl text-xs font-bold uppercase tracking-wide transition-all border border-red-100">
+              Sair da Conta
+            </button>
           </div>
         )}
       </main>
 
-      {/* Dark Nav Floating Bar */}
-      <div className="fixed bottom-8 left-1/2 -translate-x-1/2 w-[92%] max-w-[440px] bg-white/5 backdrop-blur-3xl border border-white/10 rounded-[35px] flex items-center justify-around py-4 px-3 shadow-[0_20px_50px_rgba(0,0,0,0.8)] z-50">
-        <NavButton active={activeTab === 'catalog'} onClick={() => setActiveTab('catalog')} icon={List} label="Ofertas" />
+      {/* Navegação Flutuante Clean */}
+      <div className="fixed bottom-6 left-1/2 -translate-x-1/2 w-[90%] max-w-[400px] bg-white border border-slate-200/80 rounded-2xl flex items-center justify-around py-3 px-2 shadow-xl shadow-slate-200/50 z-50 backdrop-blur-md">
+        <NavButton active={activeTab === 'catalog'} onClick={() => setActiveTab('catalog')} icon={List} label="Catálogo" />
         <NavButton active={activeTab === 'cart'} onClick={() => setActiveTab('cart')} icon={ShoppingCart} label="Carrinho" count={cartCount} />
         <NavButton active={activeTab === 'history'} onClick={() => setActiveTab('history')} icon={History} label="Pedidos" />
-        <NavButton active={activeTab === 'profile'} onClick={() => setActiveTab('profile')} icon={User} label="Conta" />
+        <NavButton active={activeTab === 'profile'} onClick={() => setActiveTab('profile')} icon={User} label="Perfil" />
       </div>
     </div>
   );
 };
 
 const InfoCard = ({ label, value }: { label: string; value: string }) => (
-  <div className="bg-white/5 p-6 rounded-[30px] border border-white/5 shadow-inner transition-all hover:border-red-500/40 group">
-    <label className="text-[10px] font-black uppercase text-red-600 tracking-[0.3em] mb-2 block group-hover:text-red-400 transition-colors">{label}</label>
-    <p className="font-bold text-white leading-relaxed text-sm tracking-wide">{value}</p>
+  <div className="bg-white p-4 rounded-xl border border-slate-100 shadow-sm flex flex-col">
+    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wide mb-1">{label}</span>
+    <span className="text-sm font-medium text-slate-800 break-words">{value || '-'}</span>
   </div>
 );
 
 const NavButton = ({ active, onClick, icon: Icon, label, count }: any) => (
   <button 
     onClick={onClick}
-    className={`flex flex-col items-center p-3 rounded-2xl transition-all relative ${active ? 'text-red-500' : 'text-slate-500'}`}
+    className={`flex flex-col items-center p-2 rounded-xl transition-all relative min-w-[60px] ${active ? 'text-red-600 bg-red-50' : 'text-slate-400 hover:text-slate-600'}`}
   >
     {count > 0 && (
-      <span className="absolute -top-1 right-2 bg-red-600 text-white text-[9px] font-black w-6 h-6 rounded-full flex items-center justify-center ring-4 ring-black shadow-lg shadow-red-900/40">
+      <span className="absolute -top-1 right-1 bg-red-600 text-white text-[9px] font-bold min-w-[16px] h-4 px-1 rounded-full flex items-center justify-center border-2 border-white shadow-sm">
         {count}
       </span>
     )}
-    <Icon className={`w-6 h-6 mb-1 transition-transform ${active ? 'scale-110 drop-shadow-[0_0_8px_rgba(220,38,38,0.5)]' : 'scale-100 opacity-40'}`} />
-    <span className="text-[9px] font-black uppercase tracking-widest">{label}</span>
-    {active && <div className="absolute -bottom-1 w-1 h-1 bg-red-600 rounded-full" />}
+    <Icon className={`w-5 h-5 mb-0.5 ${active ? 'stroke-[2.5px]' : 'stroke-2'}`} />
+    <span className="text-[9px] font-semibold">{label}</span>
   </button>
 );
 

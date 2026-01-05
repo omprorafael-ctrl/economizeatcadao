@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { Order, OrderStatus } from '../../types';
-import { Clock, CheckCircle, Truck, Package, ChevronRight, Calendar, ArrowRight, UserCircle2 } from 'lucide-react';
+import { Clock, CheckCircle, Truck, Package, ChevronRight, Calendar, ArrowRight, User } from 'lucide-react';
 
 interface OrderHistoryProps {
   orders: Order[];
@@ -10,81 +10,70 @@ interface OrderHistoryProps {
 const OrderHistory: React.FC<OrderHistoryProps> = ({ orders }) => {
   const getStatusInfo = (status: OrderStatus) => {
     switch (status) {
-      case OrderStatus.GENERATED: return { icon: Clock, color: 'text-amber-500', bg: 'bg-amber-500/10', label: 'Em Análise' };
-      case OrderStatus.SENT: return { icon: Truck, color: 'text-blue-500', bg: 'bg-blue-500/10', label: 'Em Rota' };
-      case OrderStatus.FINISHED: return { icon: CheckCircle, color: 'text-emerald-500', bg: 'bg-emerald-500/10', label: 'Finalizado' };
-      default: return { icon: Package, color: 'text-slate-500', bg: 'bg-white/5', label: 'Processando' };
+      case OrderStatus.GENERATED: return { icon: Clock, color: 'text-amber-600', bg: 'bg-amber-50', label: 'Análise' };
+      case OrderStatus.SENT: return { icon: Truck, color: 'text-blue-600', bg: 'bg-blue-50', label: 'Em Rota' };
+      case OrderStatus.FINISHED: return { icon: CheckCircle, color: 'text-emerald-600', bg: 'bg-emerald-50', label: 'Entregue' };
+      default: return { icon: Package, color: 'text-slate-500', bg: 'bg-slate-50', label: 'Processando' };
     }
   };
 
   if (orders.length === 0) {
     return (
-      <div className="p-12 text-center flex flex-col items-center justify-center h-full bg-transparent">
-        <div className="w-24 h-24 bg-red-600/5 rounded-full flex items-center justify-center mb-6 border border-red-500/10">
-          <Package className="w-12 h-12 text-red-900/40" />
+      <div className="p-12 text-center flex flex-col items-center justify-center h-full bg-slate-50">
+        <div className="w-20 h-20 bg-slate-100 rounded-full flex items-center justify-center mb-4 text-slate-300">
+          <Package className="w-10 h-10" />
         </div>
-        <p className="text-white font-black italic tracking-tighter text-xl uppercase">Nenhum Registro</p>
-        <p className="text-slate-500 text-[10px] font-black uppercase tracking-[0.3em] mt-2">Você ainda não processou pedidos no sistema</p>
-        <button className="mt-8 px-8 py-4 bg-red-600 text-white rounded-2xl font-black text-[9px] uppercase tracking-[0.3em] flex items-center gap-3">
-          Explorar Ofertas <ArrowRight className="w-4 h-4" />
-        </button>
+        <p className="text-slate-800 font-bold text-sm uppercase">Sem histórico</p>
+        <p className="text-slate-400 text-xs mt-1">Seus pedidos aparecerão aqui.</p>
       </div>
     );
   }
 
   return (
-    <div className="p-8 space-y-8 animate-in fade-in slide-in-from-bottom-6 duration-700">
-      <div className="flex items-end justify-between px-2">
-        <div>
-          <h2 className="text-3xl font-black text-white italic tracking-tighter uppercase">Histórico</h2>
-          <p className="text-[10px] font-black text-red-500 uppercase tracking-[0.4em] mt-1">Timeline de suprimentos</p>
-        </div>
-        <div className="bg-white/5 px-4 py-2 rounded-xl border border-white/5">
-          <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest">{orders.length} Pedidos</p>
-        </div>
+    <div className="p-4 space-y-4 animate-in fade-in duration-500 bg-slate-50 min-h-full">
+      <div className="flex items-end justify-between px-2 mb-2">
+        <h2 className="text-lg font-bold text-slate-800">Meus Pedidos</h2>
+        <span className="text-xs font-medium text-slate-500 bg-white px-2 py-1 rounded-md border border-slate-200">{orders.length} total</span>
       </div>
 
-      <div className="space-y-4">
+      <div className="space-y-3">
         {orders.map(order => {
           const status = getStatusInfo(order.status);
           return (
-            <div key={order.id} className="bg-white/5 rounded-[35px] p-6 border border-white/5 flex flex-col group active:scale-[0.98] transition-all hover:border-red-500/30">
-              <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center gap-5">
-                  <div className={`${status.bg} ${status.color} w-14 h-14 rounded-2xl flex items-center justify-center border border-white/5 shadow-inner group-hover:scale-110 transition-transform`}>
-                    <status.icon className="w-7 h-7" />
+            <div key={order.id} className="bg-white rounded-xl p-4 border border-slate-200 shadow-sm flex flex-col transition-all hover:border-slate-300">
+              <div className="flex items-start justify-between mb-3">
+                <div className="flex items-center gap-3">
+                  <div className={`${status.bg} ${status.color} w-10 h-10 rounded-lg flex items-center justify-center`}>
+                    <status.icon className="w-5 h-5" />
                   </div>
                   <div>
-                    <div className="flex items-center gap-3 mb-1">
-                      <span className="font-black text-white italic tracking-widest text-base">#{order.id}</span>
-                      <span className={`text-[8px] font-black px-3 py-1 rounded-lg uppercase tracking-widest border border-white/5 ${status.bg} ${status.color}`}>
+                    <p className="font-bold text-slate-900 text-sm">Pedido #{order.id}</p>
+                    <div className="flex items-center gap-2 mt-0.5">
+                      <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded uppercase ${status.bg} ${status.color}`}>
                         {status.label}
                       </span>
-                    </div>
-                    <div className="flex items-center gap-4">
-                      <p className="text-lg font-black text-white italic tracking-tighter">
-                        <span className="text-[9px] text-red-500 mr-1 not-italic">R$</span>
-                        {order.total.toFixed(2).replace('.', ',')}
-                      </p>
-                      <div className="h-4 w-px bg-white/10" />
-                      <p className="text-[10px] text-slate-500 font-bold flex items-center gap-1.5 uppercase tracking-tighter">
-                        <Calendar className="w-3.5 h-3.5 opacity-40" />
+                      <span className="text-[10px] text-slate-400 flex items-center gap-1">
+                        <Calendar className="w-3 h-3" />
                         {new Date(order.createdAt).toLocaleDateString('pt-BR')}
-                      </p>
+                      </span>
                     </div>
                   </div>
                 </div>
-                <div className="w-10 h-10 bg-white/5 rounded-2xl flex items-center justify-center text-slate-600 group-hover:text-red-500 transition-colors">
-                  <ChevronRight className="w-5 h-5" />
+                <div className="text-right">
+                   <p className="text-sm font-bold text-slate-900">R$ {order.total.toFixed(2).replace('.', ',')}</p>
                 </div>
               </div>
 
-              {/* Novo Campo: Nome da Vendedora */}
-              <div className="flex items-center gap-2 mt-2 pt-4 border-t border-white/5">
-                <UserCircle2 className="w-3.5 h-3.5 text-emerald-500 opacity-40" />
-                <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest italic">
-                  Atendimento: <span className="text-slate-300 not-italic ml-1">{order.sellerName || 'Finalizado pelo Portal'}</span>
-                </p>
+              <div className="pt-3 border-t border-slate-100 flex items-center justify-between">
+                <div className="flex items-center gap-1.5 text-slate-500">
+                  <User className="w-3.5 h-3.5" />
+                  <span className="text-[10px] font-medium uppercase truncate max-w-[150px]">
+                    {order.sellerName || 'Sistema'}
+                  </span>
+                </div>
+                <button className="text-red-600 text-[10px] font-bold uppercase hover:text-red-700 flex items-center gap-1">
+                  Ver Detalhes <ChevronRight className="w-3 h-3" />
+                </button>
               </div>
             </div>
           );

@@ -13,11 +13,9 @@ import {
   Info,
   X,
   ShoppingCart,
-  ShieldCheck,
   Truck,
   Box,
-  ChevronDown,
-  Sparkles
+  Filter
 } from 'lucide-react';
 
 interface CatalogProps {
@@ -62,45 +60,28 @@ const Catalog: React.FC<CatalogProps> = ({ products, onAddToCart }) => {
     return matchesSearch && matchesGroup && p.active;
   });
 
-  const getSmartBadges = (product: Product) => {
-    const badges = [];
-    if (product.onSale) badges.push({ text: 'OFERTA', color: 'text-white bg-orange-600 border-orange-500 animate-pulse' });
-    if (product.description.toLowerCase().includes('integral')) badges.push({ text: 'Saudável', color: 'text-emerald-500 bg-emerald-500/10 border-emerald-500/10' });
-    
-    const weightMatch = product.description.match(/\d+(kg|g|ml|l)/i);
-    if (weightMatch) badges.push({ text: weightMatch[0].toUpperCase(), color: 'text-slate-400 bg-white/5 border-white/5' });
-    
-    return badges;
-  };
-
   return (
-    <div className="flex flex-col animate-in fade-in duration-700 bg-transparent min-h-full pb-20">
-      {/* Banner de Notificação de Promoção */}
-      {products.some(p => p.onSale && p.active) && (
-        <div className="bg-orange-600/20 border-b border-orange-600/30 px-5 py-2 flex items-center justify-center gap-2 overflow-hidden">
-          <Sparkles className="w-3 h-3 text-orange-500 animate-spin-slow" />
-          <p className="text-[9px] font-black text-orange-500 uppercase tracking-[0.3em] whitespace-nowrap">Baixa de preços detectada! Confira as ofertas exclusivas.</p>
-        </div>
-      )}
-
-      <div className="bg-black/40 backdrop-blur-3xl sticky top-0 z-20 shadow-sm border-b border-white/5">
-        <div className="px-5 pt-5 pb-3 space-y-3">
-          <div className="flex items-center gap-3">
+    <div className="flex flex-col animate-in fade-in duration-500 bg-slate-50 min-h-full pb-20">
+      
+      {/* Barra de Pesquisa e Filtros */}
+      <div className="bg-white sticky top-0 z-20 shadow-sm border-b border-slate-100">
+        <div className="px-4 py-3 space-y-3">
+          <div className="flex items-center gap-2">
             <div className="relative flex-1 group">
-              <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 w-4 h-4" />
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4 group-focus-within:text-red-500 transition-colors" />
               <input 
                 type="text"
-                placeholder="Pesquise produtos..."
-                className="w-full pl-11 pr-4 py-3 bg-white/5 border border-white/5 rounded-2xl focus:bg-white/10 outline-none font-bold text-white text-[12px] transition-all placeholder:text-slate-700"
+                placeholder="Buscar produtos..."
+                className="w-full pl-9 pr-4 py-2 bg-slate-100 border border-transparent rounded-lg focus:bg-white focus:border-red-200 focus:ring-2 focus:ring-red-500/10 outline-none text-sm font-medium text-slate-800 transition-all placeholder:text-slate-400"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
               />
             </div>
-            <div className="flex bg-white/5 p-1 rounded-xl border border-white/5 shrink-0">
-              <button onClick={() => setViewMode('grid')} className={`p-2 rounded-lg transition-all ${viewMode === 'grid' ? 'bg-red-600 text-white' : 'text-slate-600'}`}>
+            <div className="flex bg-slate-100 p-0.5 rounded-lg border border-slate-200 shrink-0">
+              <button onClick={() => setViewMode('grid')} className={`p-1.5 rounded-md transition-all ${viewMode === 'grid' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-400'}`}>
                 <LayoutGrid className="w-4 h-4" />
               </button>
-              <button onClick={() => setViewMode('list')} className={`p-2 rounded-lg transition-all ${viewMode === 'list' ? 'bg-red-600 text-white' : 'text-slate-600'}`}>
+              <button onClick={() => setViewMode('list')} className={`p-1.5 rounded-md transition-all ${viewMode === 'list' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-400'}`}>
                 <LayoutList className="w-4 h-4" />
               </button>
             </div>
@@ -111,13 +92,13 @@ const Catalog: React.FC<CatalogProps> = ({ products, onAddToCart }) => {
               <button
                 key={group}
                 onClick={() => setSelectedGroup(group)}
-                className={`px-5 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest whitespace-nowrap transition-all border ${
+                className={`px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-all border ${
                   selectedGroup === group 
                   ? 'bg-red-600 text-white border-red-600' 
-                  : group === 'Promoções' ? 'bg-orange-600/10 text-orange-500 border-orange-600/30' : 'bg-white/5 text-slate-500 border-white/5'
+                  : group === 'Promoções' ? 'bg-orange-50 text-orange-600 border-orange-200' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
                 }`}
               >
-                {group === 'Promoções' && <Zap className="w-3 h-3 inline mr-1 fill-orange-500" />}
+                {group === 'Promoções' && <Zap className="w-3 h-3 inline mr-1" />}
                 {group}
               </button>
             ))}
@@ -125,116 +106,99 @@ const Catalog: React.FC<CatalogProps> = ({ products, onAddToCart }) => {
         </div>
       </div>
 
-      <div className={`p-3 ${viewMode === 'grid' ? 'grid grid-cols-2 gap-3' : 'space-y-3'}`}>
+      {/* Grid de Produtos */}
+      <div className={`p-4 ${viewMode === 'grid' ? 'grid grid-cols-2 gap-3' : 'space-y-3'}`}>
         {filteredProducts.length > 0 ? (
           filteredProducts.map(product => {
             const qty = quantities[product.id] || 1;
             const isAdded = addedItems[product.id];
-            const smartBadges = getSmartBadges(product);
             const displayPrice = product.onSale && product.salePrice ? product.salePrice : product.price;
 
             if (viewMode === 'grid') {
               return (
-                <div key={product.id} className={`bg-white/5 rounded-[28px] border flex flex-col group active:bg-white/10 transition-all duration-300 relative ${product.onSale ? 'border-orange-500/20 bg-orange-500/[0.02]' : 'border-white/5'}`}>
-                  <button 
-                    onClick={() => setSelectedProduct(product)}
-                    className="absolute top-2 right-2 z-10 p-1.5 bg-black/40 rounded-full text-slate-600"
-                  >
-                    <Info className="w-3 h-3" />
-                  </button>
+                <div key={product.id} className="bg-white rounded-xl border border-slate-200 shadow-sm flex flex-col overflow-hidden relative group">
+                   {product.onSale && (
+                     <div className="absolute top-0 left-0 bg-orange-500 text-white text-[9px] font-bold px-2 py-0.5 rounded-br-lg z-10">
+                       OFERTA
+                     </div>
+                   )}
                   
                   <div className="p-3 flex-1 flex flex-col">
-                    <div className="mb-2">
-                      <span className="inline-block px-2 py-0.5 bg-red-600/10 text-red-500 rounded-md text-[7px] font-black uppercase tracking-tighter border border-red-500/10 mb-1.5">
-                        {product.group}
+                    <div className="flex justify-between items-start mb-2">
+                       <span className="text-[9px] font-semibold text-slate-400 uppercase tracking-wide">
+                        SKU {product.code}
                       </span>
-                      
-                      <h3 
-                        onClick={() => setSelectedProduct(product)}
-                        className="text-[10px] font-bold text-slate-100 line-clamp-4 leading-[1.3] h-[52px] uppercase tracking-tighter cursor-pointer overflow-hidden"
-                      >
-                        {product.description}
-                      </h3>
-
-                      <div className="flex flex-wrap gap-1 mt-1.5 h-4 overflow-hidden">
-                        {smartBadges.map((b, i) => (
-                          <span key={i} className={`px-1.5 py-0.5 rounded text-[7px] font-black uppercase border ${b.color}`}>
-                            {b.text}
-                          </span>
-                        ))}
-                      </div>
-                      
-                      <div className="mt-2 min-h-[38px] flex flex-col justify-end">
-                        {product.onSale && (
-                          <p className="text-[9px] text-slate-600 line-through leading-none mb-1">R$ {product.price.toFixed(2).replace('.', ',')}</p>
-                        )}
-                        <div className="flex items-baseline gap-1">
-                          <span className={`text-[8px] font-black ${product.onSale ? 'text-orange-500' : 'text-red-500'}`}>R$</span>
-                          <p className={`text-xl font-black tracking-tighter italic leading-none ${product.onSale ? 'text-orange-500' : 'text-white'}`}>
-                            {displayPrice.toFixed(2).replace('.', ',')}
-                          </p>
-                        </div>
-                      </div>
+                      <button onClick={() => setSelectedProduct(product)} className="text-slate-300 hover:text-red-500 transition-colors">
+                        <Info className="w-4 h-4" />
+                      </button>
                     </div>
 
-                    <div className="space-y-2 mt-auto">
-                      <div className="flex items-center justify-between bg-black/40 p-1 rounded-xl border border-white/5">
-                        <button onClick={() => handleQtyChange(product.id, -1)} className="w-7 h-7 flex items-center justify-center text-slate-500"><Minus className="w-3 h-3" /></button>
-                        <span className="font-black text-white text-[11px]">{qty}</span>
-                        <button onClick={() => handleQtyChange(product.id, 1)} className="w-7 h-7 flex items-center justify-center text-slate-500"><Plus className="w-3 h-3" /></button>
+                    <h3 onClick={() => setSelectedProduct(product)} className="text-xs font-semibold text-slate-800 leading-snug line-clamp-3 mb-2 min-h-[42px] cursor-pointer">
+                      {product.description}
+                    </h3>
+                    
+                    <div className="mt-auto">
+                      <div className="mb-3">
+                        {product.onSale && <p className="text-[10px] text-slate-400 line-through">R$ {product.price.toFixed(2).replace('.', ',')}</p>}
+                        <div className="flex items-baseline gap-0.5">
+                          <span className={`text-[10px] font-bold ${product.onSale ? 'text-orange-600' : 'text-slate-500'}`}>R$</span>
+                          <span className={`text-lg font-bold tracking-tight ${product.onSale ? 'text-orange-600' : 'text-slate-900'}`}>
+                            {displayPrice.toFixed(2).replace('.', ',')}
+                          </span>
+                        </div>
                       </div>
-                      
-                      <button 
-                        onClick={() => handleAdd(product)}
-                        className={`w-full py-2.5 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all ${
-                          isAdded ? 'bg-emerald-600 text-white' : (product.onSale ? 'bg-orange-600 text-white' : 'bg-red-600 text-white')
-                        }`}
-                      >
-                        {isAdded ? <Check className="w-3.5 h-3.5 mx-auto" /> : 'Confirmar'}
-                      </button>
+
+                      <div className="flex gap-2">
+                         <div className="flex items-center bg-slate-50 rounded-lg border border-slate-200 h-8">
+                            <button onClick={() => handleQtyChange(product.id, -1)} className="px-2 h-full text-slate-500 hover:text-red-600"><Minus className="w-3 h-3" /></button>
+                            <span className="text-xs font-bold text-slate-800 min-w-[16px] text-center">{qty}</span>
+                            <button onClick={() => handleQtyChange(product.id, 1)} className="px-2 h-full text-slate-500 hover:text-red-600"><Plus className="w-3 h-3" /></button>
+                         </div>
+                         <button 
+                          onClick={() => handleAdd(product)}
+                          className={`flex-1 rounded-lg h-8 flex items-center justify-center transition-all ${
+                            isAdded ? 'bg-emerald-500 text-white' : 'bg-red-600 hover:bg-red-700 text-white'
+                          }`}
+                        >
+                          {isAdded ? <Check className="w-4 h-4" /> : <ShoppingCart className="w-4 h-4" />}
+                        </button>
+                      </div>
                     </div>
                   </div>
                 </div>
               );
             } else {
+              // List View
               return (
-                <div key={product.id} className={`rounded-[22px] p-3 border flex gap-3 group active:bg-white/10 transition-all ${product.onSale ? 'bg-orange-500/[0.03] border-orange-500/20' : 'bg-white/5 border-white/5'}`}>
+                <div key={product.id} className="bg-white rounded-xl p-3 border border-slate-200 shadow-sm flex gap-3">
                   <div className="flex-1 min-w-0" onClick={() => setSelectedProduct(product)}>
                     <div className="flex items-center gap-2 mb-1">
-                      <span className={`px-1.5 py-0.5 rounded-md text-[7px] font-black uppercase ${product.onSale ? 'bg-orange-600 text-white' : 'bg-red-600 text-white'}`}>SKU {product.code}</span>
-                      <span className="text-[8px] font-black text-slate-600 uppercase truncate">{product.group}</span>
+                      <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">SKU {product.code}</span>
+                      {product.onSale && <span className="text-[8px] font-bold bg-orange-100 text-orange-600 px-1.5 py-0.5 rounded">PROMO</span>}
                     </div>
-                    <h3 className="text-[11px] font-bold text-white leading-tight uppercase line-clamp-2 tracking-tighter mb-1.5">{product.description}</h3>
-                    <div className="flex items-center gap-3">
-                      <div>
-                        {product.onSale && <p className="text-[8px] text-slate-600 line-through leading-none">R$ {product.price.toFixed(2).replace('.', ',')}</p>}
-                        <p className={`text-base font-black italic ${product.onSale ? 'text-orange-500' : 'text-white'}`}>
-                          <span className={`text-[9px] mr-1 not-italic ${product.onSale ? 'text-orange-500' : 'text-red-500'}`}>R$</span>
-                          {displayPrice.toFixed(2).replace('.', ',')}
+                    <h3 className="text-sm font-semibold text-slate-800 leading-tight mb-2 truncate">{product.description}</h3>
+                    <div>
+                        {product.onSale && <p className="text-[10px] text-slate-400 line-through leading-none">R$ {product.price.toFixed(2).replace('.', ',')}</p>}
+                        <p className={`text-base font-bold ${product.onSale ? 'text-orange-600' : 'text-slate-900'}`}>
+                          <span className="text-xs mr-0.5">R$</span>{displayPrice.toFixed(2).replace('.', ',')}
                         </p>
-                      </div>
-                      {smartBadges.slice(0, 1).map((b, i) => (
-                        <span key={i} className={`px-1.5 py-0.5 rounded text-[7px] font-black uppercase ${b.color}`}>
-                          {b.text}
-                        </span>
-                      ))}
                     </div>
                   </div>
 
-                  <div className="flex flex-col gap-2 shrink-0">
-                    <div className="flex items-center bg-black/40 p-1 rounded-xl border border-white/5">
-                      <button onClick={() => handleQtyChange(product.id, -1)} className="w-6 h-6 flex items-center justify-center text-slate-500"><Minus className="w-3 h-3" /></button>
-                      <span className="w-6 text-center font-black text-white text-[10px]">{qty}</span>
-                      <button onClick={() => handleQtyChange(product.id, 1)} className="w-6 h-6 flex items-center justify-center text-slate-500"><Plus className="w-3 h-3" /></button>
+                  <div className="flex flex-col gap-2 shrink-0 justify-center">
+                    <div className="flex items-center bg-slate-50 rounded-lg border border-slate-200 h-8">
+                      <button onClick={() => handleQtyChange(product.id, -1)} className="px-2 h-full text-slate-500 hover:text-red-600"><Minus className="w-3 h-3" /></button>
+                      <span className="text-xs font-bold text-slate-800 min-w-[16px] text-center">{qty}</span>
+                      <button onClick={() => handleQtyChange(product.id, 1)} className="px-2 h-full text-slate-500 hover:text-red-600"><Plus className="w-3 h-3" /></button>
                     </div>
                     
                     <button 
                       onClick={() => handleAdd(product)}
-                      className={`w-full py-2.5 px-4 rounded-xl text-[8px] font-black uppercase tracking-widest transition-all ${
-                        isAdded ? 'bg-emerald-600 text-white' : (product.onSale ? 'bg-orange-600 text-white' : 'bg-red-600 text-white')
+                      className={`w-full h-8 rounded-lg flex items-center justify-center transition-all text-xs font-bold ${
+                        isAdded ? 'bg-emerald-500 text-white' : 'bg-red-600 hover:bg-red-700 text-white'
                       }`}
                     >
-                      {isAdded ? <Check className="w-3 h-3 mx-auto" /> : 'Add'}
+                      {isAdded ? 'OK' : 'Comprar'}
                     </button>
                   </div>
                 </div>
@@ -242,92 +206,81 @@ const Catalog: React.FC<CatalogProps> = ({ products, onAddToCart }) => {
             }
           })
         ) : (
-          <div className="col-span-2 py-40 text-center opacity-20">
-            <Package className="w-16 h-16 mx-auto mb-4" />
-            <p className="text-[10px] font-black uppercase tracking-[0.2em]">Sem estoque</p>
+          <div className="col-span-2 py-20 text-center">
+            <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-4">
+               <Package className="w-8 h-8 text-slate-300" />
+            </div>
+            <p className="text-slate-400 font-medium text-sm">Nenhum produto encontrado</p>
           </div>
         )}
       </div>
 
+      {/* Modal de Detalhes (Sheet) */}
       {selectedProduct && (
-        <div className="fixed inset-0 z-[100] flex items-end justify-center animate-in slide-in-from-bottom-full duration-500">
-          <div className="absolute inset-0 bg-black/90 backdrop-blur-sm" onClick={() => setSelectedProduct(null)} />
-          <div className="relative bg-[#0a0a0a] w-full max-w-lg rounded-t-[45px] shadow-[0_-10px_50px_rgba(220,38,38,0.2)] border-t border-white/10 overflow-hidden flex flex-col max-h-[85vh]">
+        <div className="fixed inset-0 z-[100] flex items-end justify-center animate-in slide-in-from-bottom-full duration-300">
+          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm transition-opacity" onClick={() => setSelectedProduct(null)} />
+          <div className="relative bg-white w-full max-w-lg rounded-t-3xl shadow-2xl overflow-hidden flex flex-col max-h-[85vh]">
             
-            <div className="w-12 h-1.5 bg-white/10 rounded-full mx-auto mt-4 mb-2 shrink-0" />
+            <div className="w-12 h-1 bg-slate-200 rounded-full mx-auto mt-3 mb-2 shrink-0" />
 
-            <div className="px-8 pb-4 flex items-center justify-between shrink-0">
-              <div className="flex items-center gap-3">
-                <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${selectedProduct.onSale ? 'bg-orange-600' : 'bg-red-600'}`}>
-                  {selectedProduct.onSale ? <Zap className="w-5 h-5 text-white fill-white" /> : <Box className="w-5 h-5 text-white" />}
-                </div>
-                <h4 className="text-lg font-black text-white uppercase italic tracking-tighter">Ficha do Produto</h4>
-              </div>
-              <button 
-                onClick={() => setSelectedProduct(null)}
-                className="p-3 bg-white/5 rounded-2xl text-slate-500"
-              >
+            <div className="px-6 pb-2 flex items-center justify-between shrink-0 border-b border-slate-100">
+              <h4 className="text-sm font-bold text-slate-800 uppercase tracking-wide">Detalhes do Item</h4>
+              <button onClick={() => setSelectedProduct(null)} className="p-2 text-slate-400 hover:text-slate-600">
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            <div className="flex-1 overflow-y-auto px-8 pb-10 scrollbar-hide space-y-6">
-              <div className="space-y-3">
-                <div className="flex flex-wrap gap-2">
-                   <span className={`px-3 py-1 text-white rounded-lg text-[9px] font-black uppercase tracking-widest ${selectedProduct.onSale ? 'bg-orange-600' : 'bg-red-600'}`}>SKU {selectedProduct.code}</span>
-                   <span className="px-3 py-1 bg-white/5 border border-white/5 text-slate-400 rounded-lg text-[9px] font-black uppercase tracking-widest">{selectedProduct.group}</span>
-                   {selectedProduct.onSale && (
-                     <span className="px-3 py-1 bg-white/5 border border-orange-500/30 text-orange-500 rounded-lg text-[9px] font-black uppercase tracking-widest animate-pulse">PROMOÇÃO ATIVA</span>
-                   )}
+            <div className="flex-1 overflow-y-auto px-6 py-6 scrollbar-hide space-y-6">
+              <div>
+                <div className="flex flex-wrap gap-2 mb-3">
+                   <span className="px-2 py-1 bg-slate-100 text-slate-600 rounded-md text-[10px] font-bold uppercase tracking-wider">SKU {selectedProduct.code}</span>
+                   <span className="px-2 py-1 bg-slate-100 text-slate-600 rounded-md text-[10px] font-bold uppercase tracking-wider">{selectedProduct.group}</span>
                 </div>
-                <h2 className="text-2xl font-black text-white leading-[1.1] italic uppercase tracking-tighter">{selectedProduct.description}</h2>
+                <h2 className="text-xl font-bold text-slate-900 leading-tight">{selectedProduct.description}</h2>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
-                <div className={`p-5 rounded-[28px] border ${selectedProduct.onSale ? 'bg-orange-600/10 border-orange-500/20' : 'bg-white/5 border-white/5'}`}>
-                  <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest mb-1">Valor Unitário</p>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="p-4 rounded-xl bg-slate-50 border border-slate-100">
+                  <p className="text-[10px] font-bold text-slate-400 uppercase mb-1">Preço Unitário</p>
                   <div className="flex flex-col">
-                    {selectedProduct.onSale && <span className="text-[9px] text-slate-600 line-through">R$ {selectedProduct.price.toFixed(2).replace('.', ',')}</span>}
-                    <p className={`text-2xl font-black italic ${selectedProduct.onSale ? 'text-orange-500' : 'text-white'}`}>
-                      <span className={`text-[10px] mr-1 not-italic ${selectedProduct.onSale ? 'text-orange-500' : 'text-red-500'}`}>R$</span>
+                    {selectedProduct.onSale && <span className="text-xs text-slate-400 line-through">R$ {selectedProduct.price.toFixed(2).replace('.', ',')}</span>}
+                    <p className={`text-2xl font-bold tracking-tight ${selectedProduct.onSale ? 'text-orange-600' : 'text-slate-900'}`}>
+                      <span className="text-xs mr-1">R$</span>
                       {(selectedProduct.onSale && selectedProduct.salePrice ? selectedProduct.salePrice : selectedProduct.price).toFixed(2).replace('.', ',')}
                     </p>
                   </div>
                 </div>
-                <div className="bg-white/5 p-5 rounded-[28px] border border-white/5 flex flex-col justify-center">
-                  <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest mb-1">Logística</p>
-                  <div className="flex items-center gap-1.5 text-emerald-500 font-black text-[10px] uppercase italic">
-                    <Truck className="w-3 h-3" /> Pronta Entrega
-                  </div>
+                <div className="p-4 rounded-xl bg-slate-50 border border-slate-100 flex flex-col justify-center items-start">
+                   <div className="flex items-center gap-2 mb-1">
+                      <Truck className="w-4 h-4 text-emerald-600" />
+                      <span className="text-xs font-bold text-emerald-700">Disponível</span>
+                   </div>
+                   <p className="text-[10px] text-slate-400 leading-tight">Pronta entrega para seu CNPJ.</p>
                 </div>
               </div>
 
-              <div className="space-y-4">
-                <p className="text-[9px] font-black text-slate-500 uppercase tracking-[0.2em] border-b border-white/5 pb-2">Especificações</p>
-                <div className="grid grid-cols-1 gap-4">
-                  <DetailItem icon={ShieldCheck} label="Controle" value="Qualidade Assegurada" />
-                  <DetailItem icon={Box} label="Categoria" value={selectedProduct.group} />
-                </div>
-              </div>
-
-              <div className="bg-white/5 p-6 rounded-[30px] border border-white/5">
-                <p className="text-[10px] text-slate-400 font-medium leading-relaxed uppercase tracking-tight italic">
-                  Este produto faz parte do catálogo premium. Itens em promoção possuem limite de estoque por CNPJ.
-                </p>
+              <div className="space-y-4 pt-2">
+                 <div className="flex items-center gap-3 p-3 rounded-lg border border-slate-100">
+                    <Box className="w-5 h-5 text-slate-400" />
+                    <div>
+                       <p className="text-[10px] font-bold text-slate-500 uppercase">Grupo</p>
+                       <p className="text-xs font-semibold text-slate-900">{selectedProduct.group}</p>
+                    </div>
+                 </div>
               </div>
             </div>
 
-            <div className="p-6 bg-black/60 border-t border-white/5 flex items-center justify-between shrink-0 mb-4">
-              <div className="flex items-center bg-white/5 p-1 rounded-2xl border border-white/5">
-                <button onClick={() => handleQtyChange(selectedProduct.id, -1)} className="w-9 h-9 rounded-xl flex items-center justify-center text-slate-400"><Minus className="w-4 h-4" /></button>
-                <span className="w-10 text-center font-black text-white text-base">{quantities[selectedProduct.id] || 1}</span>
-                <button onClick={() => handleQtyChange(selectedProduct.id, 1)} className="w-9 h-9 rounded-xl flex items-center justify-center text-slate-400"><Plus className="w-4 h-4" /></button>
+            <div className="p-4 border-t border-slate-100 bg-slate-50 flex items-center gap-4 shrink-0 mb-4">
+              <div className="flex items-center bg-white rounded-lg border border-slate-200 h-10 shadow-sm">
+                <button onClick={() => handleQtyChange(selectedProduct.id, -1)} className="px-3 h-full text-slate-400 hover:text-red-600"><Minus className="w-4 h-4" /></button>
+                <span className="w-8 text-center font-bold text-slate-900">{quantities[selectedProduct.id] || 1}</span>
+                <button onClick={() => handleQtyChange(selectedProduct.id, 1)} className="px-3 h-full text-slate-400 hover:text-red-600"><Plus className="w-4 h-4" /></button>
               </div>
               <button 
                 onClick={() => { handleAdd(selectedProduct); setSelectedProduct(null); }}
-                className={`px-10 py-4 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest flex items-center gap-3 transition-all ${selectedProduct.onSale ? 'bg-orange-600 hover:bg-orange-500' : 'bg-red-600 hover:bg-red-500'}`}
+                className="flex-1 h-10 bg-red-600 hover:bg-red-700 text-white rounded-lg font-bold text-xs uppercase tracking-wide flex items-center justify-center gap-2 shadow-sm transition-all"
               >
-                <ShoppingCart className="w-4 h-4" /> Add ao Carrinho
+                <ShoppingCart className="w-4 h-4" /> Adicionar
               </button>
             </div>
           </div>
@@ -336,17 +289,5 @@ const Catalog: React.FC<CatalogProps> = ({ products, onAddToCart }) => {
     </div>
   );
 };
-
-const DetailItem = ({ icon: Icon, label, value }: any) => (
-  <div className="flex items-center gap-3">
-    <div className="w-9 h-9 rounded-xl bg-white/5 flex items-center justify-center text-slate-600 border border-white/5">
-      <Icon className="w-4 h-4" />
-    </div>
-    <div>
-      <p className="text-[7px] font-black text-slate-600 uppercase tracking-widest">{label}</p>
-      <p className="text-[11px] font-bold text-white tracking-tight uppercase leading-none mt-0.5">{value}</p>
-    </div>
-  </div>
-);
 
 export default Catalog;
