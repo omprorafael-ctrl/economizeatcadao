@@ -1,7 +1,7 @@
 
 import React, { useState } from 'react';
 import { Product } from '../../types';
-import { Edit2, Trash2, Search, Plus, Power, Package, FileSearch, X, Tag, Loader2, DollarSign, Layers } from 'lucide-react';
+import { Edit2, Trash2, Search, Plus, Power, Package, FileSearch, X, Tag, Loader2, DollarSign, Layers, AlignLeft } from 'lucide-react';
 import PdfImport from './PdfImport';
 import { db } from '../../firebaseConfig';
 import { collection, addDoc, doc, deleteDoc, updateDoc } from 'firebase/firestore';
@@ -122,8 +122,8 @@ const ProductList: React.FC<ProductListProps> = ({ products }) => {
                       <div className="w-14 h-14 bg-white/5 rounded-[22px] flex items-center justify-center text-slate-600 border border-white/10 group-hover:bg-red-600/10 group-hover:text-red-500 transition-all">
                         <Tag className="w-6 h-6" />
                       </div>
-                      <div>
-                        <p className="font-black text-white text-sm leading-tight uppercase tracking-wide group-hover:text-red-400 transition-colors">{product.description}</p>
+                      <div className="max-w-md">
+                        <p className="font-black text-white text-sm leading-tight uppercase tracking-wide group-hover:text-red-400 transition-colors line-clamp-1">{product.description}</p>
                         <p className="text-[10px] font-black text-slate-500 mt-2 uppercase tracking-[0.2em]">SKU: {product.code}</p>
                       </div>
                     </div>
@@ -174,7 +174,6 @@ const ProductList: React.FC<ProductListProps> = ({ products }) => {
         </div>
       </div>
 
-      {/* Modal de Importação por IA */}
       {showImportModal && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 backdrop-blur-2xl">
           <div className="absolute inset-0 bg-black/80" onClick={() => setShowImportModal(false)} />
@@ -192,7 +191,6 @@ const ProductList: React.FC<ProductListProps> = ({ products }) => {
         </div>
       )}
 
-      {/* Modal de Cadastro Manual (Novo Produto) */}
       {showAddModal && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 backdrop-blur-2xl">
           <div className="absolute inset-0 bg-black/95" onClick={() => !loading && setShowAddModal(false)} />
@@ -207,33 +205,19 @@ const ProductList: React.FC<ProductListProps> = ({ products }) => {
             </div>
             
             <form onSubmit={handleAddProduct} className="p-10 space-y-6">
-              <div className="space-y-2">
-                <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.3em] ml-2">SKU / Código</label>
-                <input
-                  type="text"
-                  required
-                  disabled={loading}
-                  className="w-full px-6 py-5 bg-white/5 border border-white/5 rounded-3xl outline-none focus:ring-4 focus:ring-red-500/10 focus:bg-white/10 focus:border-red-500/40 transition-all font-bold text-white text-sm"
-                  placeholder="Ex: 10025"
-                  value={formData.code}
-                  onChange={(e) => setFormData({ ...formData, code: e.target.value })}
-                />
-              </div>
-
-              <div className="space-y-2">
-                <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.3em] ml-2">Descrição da Mercadoria</label>
-                <input
-                  type="text"
-                  required
-                  disabled={loading}
-                  className="w-full px-6 py-5 bg-white/5 border border-white/5 rounded-3xl outline-none focus:ring-4 focus:ring-red-500/10 focus:bg-white/10 focus:border-red-500/40 transition-all font-bold text-white text-sm"
-                  placeholder="Ex: Arroz Tipo 1 - 5kg"
-                  value={formData.description}
-                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                />
-              </div>
-
               <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.3em] ml-2">SKU / Código</label>
+                  <input
+                    type="text"
+                    required
+                    disabled={loading}
+                    className="w-full px-6 py-5 bg-white/5 border border-white/5 rounded-3xl outline-none focus:ring-4 focus:ring-red-500/10 focus:bg-white/10 focus:border-red-500/40 transition-all font-bold text-white text-sm"
+                    placeholder="Ex: 10025"
+                    value={formData.code}
+                    onChange={(e) => setFormData({ ...formData, code: e.target.value })}
+                  />
+                </div>
                 <div className="space-y-2">
                   <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.3em] ml-2">Categoria</label>
                   <div className="relative">
@@ -249,20 +233,37 @@ const ProductList: React.FC<ProductListProps> = ({ products }) => {
                     />
                   </div>
                 </div>
-                <div className="space-y-2">
-                  <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.3em] ml-2">Preço Unit.</label>
-                  <div className="relative">
-                    <DollarSign className="absolute left-6 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-600" />
-                    <input
-                      type="text"
-                      required
-                      disabled={loading}
-                      className="w-full pl-14 pr-6 py-5 bg-white/5 border border-white/5 rounded-3xl outline-none focus:ring-4 focus:ring-red-500/10 focus:bg-white/10 focus:border-red-500/40 transition-all font-bold text-white text-sm"
-                      placeholder="0,00"
-                      value={formData.price}
-                      onChange={(e) => setFormData({ ...formData, price: e.target.value })}
-                    />
-                  </div>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.3em] ml-2">Descrição Detalhada</label>
+                <div className="relative">
+                   <AlignLeft className="absolute left-6 top-6 w-4 h-4 text-slate-600" />
+                   <textarea
+                    required
+                    rows={4}
+                    disabled={loading}
+                    className="w-full pl-14 pr-6 py-5 bg-white/5 border border-white/5 rounded-3xl outline-none focus:ring-4 focus:ring-red-500/10 focus:bg-white/10 focus:border-red-500/40 transition-all font-bold text-white text-sm resize-none"
+                    placeholder="Descreva o produto com detalhes técnicos, peso, marca, etc..."
+                    value={formData.description}
+                    onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.3em] ml-2">Preço de Venda Unit.</label>
+                <div className="relative">
+                  <DollarSign className="absolute left-6 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-600" />
+                  <input
+                    type="text"
+                    required
+                    disabled={loading}
+                    className="w-full pl-14 pr-6 py-5 bg-white/5 border border-white/5 rounded-3xl outline-none focus:ring-4 focus:ring-red-500/10 focus:bg-white/10 focus:border-red-500/40 transition-all font-bold text-white text-sm"
+                    placeholder="0,00"
+                    value={formData.price}
+                    onChange={(e) => setFormData({ ...formData, price: e.target.value })}
+                  />
                 </div>
               </div>
 
@@ -280,7 +281,7 @@ const ProductList: React.FC<ProductListProps> = ({ products }) => {
                   disabled={loading}
                   className="flex-1 px-8 py-5 bg-red-600 text-white font-black rounded-3xl hover:bg-red-500 shadow-2xl shadow-red-900/40 transition-all active:scale-95 text-[10px] uppercase tracking-[0.3em] flex items-center justify-center gap-3"
                 >
-                  {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Confirmar'}
+                  {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Salvar Registro'}
                 </button>
               </div>
             </form>
