@@ -21,7 +21,8 @@ import {
   Activity,
   Ban,
   UserCheck,
-  AlertTriangle
+  AlertTriangle,
+  ClipboardCheck
 } from 'lucide-react';
 import { db } from '../../firebaseConfig';
 import { doc, updateDoc } from 'firebase/firestore';
@@ -61,7 +62,8 @@ const OrderList: React.FC<OrderListProps> = ({ orders, setOrders, sellers }) => 
 
   const statusMap: Record<OrderStatus, { label: string, color: string, icon: any }> = {
     [OrderStatus.GENERATED]: { label: 'Novo Pedido', color: 'bg-blue-50 text-blue-600 border-blue-100', icon: Clock },
-    [OrderStatus.IN_PROGRESS]: { label: 'Em Andamento', color: 'bg-amber-50 text-amber-600 border-amber-100', icon: Activity },
+    // Alterado para refletir a ação de "Receber" da vendedora
+    [OrderStatus.IN_PROGRESS]: { label: 'Recebido / Em Separação', color: 'bg-amber-50 text-amber-600 border-amber-100', icon: ClipboardCheck },
     [OrderStatus.INVOICED]: { label: 'Faturado', color: 'bg-emerald-50 text-emerald-600 border-emerald-100', icon: CreditCard },
     [OrderStatus.CANCELLED]: { label: 'Cancelado', color: 'bg-red-50 text-red-600 border-red-100', icon: Ban },
     [OrderStatus.SENT]: { label: 'Enviado', color: 'bg-purple-50 text-purple-600 border-purple-100', icon: Truck },
@@ -126,11 +128,13 @@ const OrderList: React.FC<OrderListProps> = ({ orders, setOrders, sellers }) => 
                     </td>
                     <td className="px-8 py-6">
                        <div className="relative inline-block w-full max-w-[200px]">
-                        <UserCheck className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-300 pointer-events-none" />
+                        <UserCheck className={`absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 pointer-events-none ${order.sellerId ? 'text-emerald-500' : 'text-slate-300'}`} />
                         <select 
                           value={order.sellerId || ''}
                           onChange={(e) => updateSeller(order.id, e.target.value)}
-                          className="w-full pl-9 pr-8 py-2 bg-white border border-slate-200 rounded-xl text-[10px] font-bold uppercase tracking-widest text-slate-600 outline-none focus:border-red-200 appearance-none cursor-pointer"
+                          className={`w-full pl-9 pr-8 py-2 bg-white border rounded-xl text-[10px] font-bold uppercase tracking-widest outline-none focus:border-red-200 appearance-none cursor-pointer ${
+                            order.sellerId ? 'border-emerald-200 text-emerald-700 bg-emerald-50/30' : 'border-slate-200 text-slate-600'
+                          }`}
                         >
                           <option value="">Não Atribuído</option>
                           {sellers.map(s => (
@@ -147,11 +151,14 @@ const OrderList: React.FC<OrderListProps> = ({ orders, setOrders, sellers }) => 
                       </div>
                     </td>
                     <td className="px-8 py-6">
-                      <div className="relative inline-block w-full max-w-[180px]">
+                      <div className="relative inline-block w-full max-w-[220px]">
+                        <div className={`absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none ${status.color.split(' ')[1]}`}>
+                          <status.icon className="w-3.5 h-3.5" />
+                        </div>
                         <select 
                           value={order.status}
                           onChange={(e) => updateStatus(order.id, e.target.value as OrderStatus)}
-                          className={`w-full px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest border-2 outline-none cursor-pointer appearance-none transition-all pr-10 ${status.color}`}
+                          className={`w-full pl-9 px-4 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest border-2 outline-none cursor-pointer appearance-none transition-all pr-10 ${status.color}`}
                         >
                           {Object.values(OrderStatus).map(s => (
                             <option key={s} value={s} className="bg-white text-slate-800 uppercase font-bold">
