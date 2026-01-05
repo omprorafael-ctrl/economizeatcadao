@@ -42,7 +42,6 @@ const App: React.FC = () => {
         console.error("Critical Auth Error:", e);
         setCurrentUser(null);
       } finally {
-        // ESSENCIAL: Garante que o loading pare mesmo se houver erro, evitando tela branca
         setLoading(false);
       }
     });
@@ -127,6 +126,7 @@ const App: React.FC = () => {
         <SellerDashboard 
           user={currentUser as Seller}
           orders={orders}
+          clients={clients}
           onLogout={handleLogout}
         />
       ) : (
