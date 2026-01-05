@@ -102,27 +102,26 @@ const Cart: React.FC<CartProps> = ({ cart, user, sellers, updateQuantity, remove
       const doc = getPDFDocument(order);
       const fileName = `Pedido_${order.id}_Atacadao.pdf`;
       
-      // 1. Inicia o Download Automático (Garante a cópia local)
+      // 1. Download Automático
       doc.save(fileName);
 
-      // 2. Prepara o arquivo para Compartilhamento
+      // 2. Preparar para WebShare
       const pdfBlob = doc.output('blob');
       const file = new File([pdfBlob], fileName, { type: 'application/pdf' });
 
-      // 3. Executa o Compartilhamento Nativo se disponível
+      // 3. Compartilhamento Nativo
       if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
         await navigator.share({
           files: [file],
           title: `Pedido Atacadão #${order.id}`,
-          text: `Olá! Segue o PDF oficial do meu pedido #${order.id} gerado no Portal Atacadão.\n\nTotal: R$ ${order.total.toFixed(2).replace('.', ',')}`
+          text: `Segue em anexo o PDF oficial do meu pedido #${order.id} gerado agora no Portal.`
         });
       } else {
-        // Fallback apenas para dispositivos sem Web Share
-        alert("Download concluído! Como seu navegador não suporta compartilhamento direto de arquivos, anexe o PDF baixado manualmente ao WhatsApp.");
+        alert("Download efetuado! Agora anexe o arquivo manualmente no WhatsApp.");
       }
     } catch (err) {
-      console.error("Erro ao processar PDF:", err);
-      setPdfError("Erro ao processar arquivo. Verifique se o download foi concluído.");
+      console.error("Erro PDF Share:", err);
+      setPdfError("Falha ao abrir seletor de compartilhamento. O arquivo foi baixado.");
     }
   };
 
@@ -155,32 +154,36 @@ const Cart: React.FC<CartProps> = ({ cart, user, sellers, updateQuantity, remove
         }))
       };
 
-      // Grava no banco
       await addDoc(collection(db, 'orders'), newOrder);
-      
       setLastOrder(newOrder);
       
-      // Tenta compartilhar e baixar imediatamente
+      // Aciona download e share imediatamente após salvar
       await handleShareAndDownloadPDF(newOrder);
       
     } catch (err: any) {
-      console.error("Erro ao salvar pedido:", err);
-      alert("Erro de conexão ao gerar pedido.");
+      console.error("Erro Order:", err);
+      alert("Erro ao processar pedido no servidor.");
     } finally {
       setIsGenerating(false);
     }
   };
 
-  const openWhatsAppDirect = () => {
+  const openWhatsAppWithDetails = () => {
     if (!lastOrder || !selectedSeller) return;
     
+    // Constrói a lista detalhada de produtos para o texto do WhatsApp
+    const itemsList = lastOrder.items.map(item => 
+      `• ${item.quantity}x ${item.description.toUpperCase()}\n   _Un: R$ ${item.unitPrice.toFixed(2).replace('.', ',')} | Sub: R$ ${item.subtotal.toFixed(2).replace('.', ',')}_`
+    ).join('\n\n');
+
     const message = encodeURIComponent(
-      `*NOVO PEDIDO ATACADÃO*\n\n` +
+      `*🛒 NOVO PEDIDO - PORTAL ATACADÃO*\n\n` +
       `Olá, *${selectedSeller.name}*!\n` +
-      `Sou o cliente *${user.name}*.\n\n` +
-      `Acabei de gerar o pedido *#${lastOrder.id}* no portal.\n` +
-      `*Total:* R$ ${lastOrder.total.toFixed(2).replace('.', ',')}\n\n` +
-      `_Já baixei o PDF e vou enviá-lo em anexo agora._`
+      `Sou o cliente: *${user.name}*\n` +
+      `Pedido: *#${lastOrder.id}*\n\n` +
+      `*DETALHAMENTO DO PEDIDO:*\n${itemsList}\n\n` +
+      `*💰 TOTAL GERAL: R$ ${lastOrder.total.toFixed(2).replace('.', ',')}*\n\n` +
+      `_O PDF detalhado já foi baixado e estou enviando em anexo._`
     );
     
     window.open(`https://wa.me/${selectedSeller.phone}?text=${message}`, '_blank');
@@ -194,25 +197,27 @@ const Cart: React.FC<CartProps> = ({ cart, user, sellers, updateQuantity, remove
           <ShoppingBag className="w-20 h-20 text-red-900/40" />
         </div>
         <h2 className="text-2xl font-black text-white uppercase tracking-tighter italic">Cesta Vazia</h2>
-        <p className="text-slate-500 mt-3 text-sm font-medium max-w-[280px] leading-relaxed uppercase tracking-widest text-[10px]">Aguardando seleção de produtos de alta qualidade do nosso catálogo.</p>
+        <p className="text-slate-500 mt-3 text-sm font-medium max-w-[280px] leading-relaxed uppercase tracking-widest text-[10px]">Escolha os itens do catálogo para iniciar o faturamento.</p>
       </div>
     );
   }
 
   return (
     <div className="flex flex-col h-full bg-transparent">
+      {/* Header Fixo do Carrinho */}
       <div className="p-10 bg-black/40 backdrop-blur-3xl border-b border-white/5 sticky top-0 z-20 flex justify-between items-end">
         <div>
-          <h2 className="text-3xl font-black text-white tracking-tighter italic uppercase">Meu Pedido</h2>
-          <p className="text-[10px] font-black text-red-600 uppercase tracking-[0.4em] mt-2">{cart.length} Itens em conferência</p>
+          <h2 className="text-3xl font-black text-white tracking-tighter italic uppercase">Conferência</h2>
+          <p className="text-[10px] font-black text-red-600 uppercase tracking-[0.4em] mt-2">{cart.length} Linhas de SKU</p>
         </div>
         <div className="text-right">
-          <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">Montante Total</p>
+          <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">Total Cesta</p>
           <p className="text-3xl font-black text-white tracking-tighter italic">R$ {total.toFixed(2).replace('.', ',')}</p>
         </div>
       </div>
 
       <div className="flex-1 overflow-y-auto p-8 space-y-4 pb-80 scrollbar-hide">
+        {/* Seleção de Vendedor */}
         {!lastOrder && (
           <div className="bg-white/5 p-8 rounded-[35px] border border-white/10 mb-8 animate-in fade-in slide-in-from-top-4">
             <div className="flex items-center gap-4 mb-6">
@@ -220,43 +225,40 @@ const Cart: React.FC<CartProps> = ({ cart, user, sellers, updateQuantity, remove
                 <UserCheck className="w-6 h-6" />
               </div>
               <div>
-                <h4 className="font-black text-white text-sm uppercase italic">Escolha sua Vendedora</h4>
-                <p className="text-[9px] font-bold text-slate-500 uppercase tracking-widest">Para suporte e finalização via Whats</p>
+                <h4 className="font-black text-white text-sm uppercase italic">Equipe de Atendimento</h4>
+                <p className="text-[9px] font-bold text-slate-500 uppercase tracking-widest">Para quem deseja enviar o pedido?</p>
               </div>
             </div>
             <div className="grid grid-cols-2 gap-3">
-              {sellers.filter(s => s.active).length > 0 ? (
-                sellers.filter(s => s.active).map(seller => (
-                  <button
-                    key={seller.id}
-                    onClick={() => setSelectedSeller(seller)}
-                    className={`p-4 rounded-2xl border text-left transition-all relative overflow-hidden ${
-                      selectedSeller?.id === seller.id 
-                      ? 'bg-red-600 border-red-500 shadow-xl shadow-red-900/40' 
-                      : 'bg-black/20 border-white/5 hover:border-red-500/40 text-slate-400'
-                    }`}
-                  >
-                    <p className={`font-black uppercase text-[10px] tracking-tight ${selectedSeller?.id === seller.id ? 'text-white' : 'text-slate-300'}`}>{seller.name}</p>
-                    <p className={`text-[8px] font-bold mt-1 ${selectedSeller?.id === seller.id ? 'text-red-100' : 'text-slate-600'}`}>Online</p>
-                    {selectedSeller?.id === seller.id && <Sparkles className="absolute -top-1 -right-1 w-8 h-8 opacity-20 text-white" />}
-                  </button>
-                ))
-              ) : (
-                <p className="col-span-2 text-[9px] text-red-500 uppercase font-black tracking-widest p-4 text-center bg-red-500/5 rounded-2xl border border-red-500/10">Nenhuma vendedora disponível no momento.</p>
-              )}
+              {sellers.filter(s => s.active).map(seller => (
+                <button
+                  key={seller.id}
+                  onClick={() => setSelectedSeller(seller)}
+                  className={`p-4 rounded-2xl border text-left transition-all relative overflow-hidden ${
+                    selectedSeller?.id === seller.id 
+                    ? 'bg-red-600 border-red-500 shadow-xl shadow-red-900/40' 
+                    : 'bg-black/20 border-white/5 text-slate-400'
+                  }`}
+                >
+                  <p className={`font-black uppercase text-[10px] tracking-tight ${selectedSeller?.id === seller.id ? 'text-white' : 'text-slate-300'}`}>{seller.name}</p>
+                  <p className={`text-[8px] font-bold mt-1 ${selectedSeller?.id === seller.id ? 'text-red-100' : 'text-slate-600'}`}>WhatsApp Ativo</p>
+                  {selectedSeller?.id === seller.id && <Sparkles className="absolute -top-1 -right-1 w-8 h-8 opacity-20 text-white" />}
+                </button>
+              ))}
             </div>
           </div>
         )}
 
         {pdfError && (
-          <div className="bg-red-500/10 border border-red-500/20 p-6 rounded-3xl flex items-center gap-4 text-red-400 mb-6">
+          <div className="bg-orange-500/10 border border-orange-500/20 p-6 rounded-3xl flex items-center gap-4 text-orange-400 mb-6">
             <AlertTriangle className="w-6 h-6 shrink-0" />
             <p className="text-xs font-bold uppercase tracking-tight">{pdfError}</p>
           </div>
         )}
 
+        {/* Lista de Produtos */}
         <div className="space-y-4">
-           <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.3em] px-4">Produtos Selecionados</p>
+           <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.3em] px-4">Itens Selecionados</p>
            {cart.map(item => {
             const itemPrice = (item.onSale && item.salePrice) ? item.salePrice : item.price;
             return (
@@ -284,16 +286,17 @@ const Cart: React.FC<CartProps> = ({ cart, user, sellers, updateQuantity, remove
         </div>
       </div>
 
+      {/* Footer de Ações Flutuante */}
       <div className="fixed bottom-32 left-1/2 -translate-x-1/2 w-[92%] max-w-lg p-8 bg-black/90 backdrop-blur-3xl rounded-[45px] shadow-[0_25px_60px_rgba(220,38,38,0.25)] z-40 border border-red-500/20">
         {!lastOrder ? (
           <div className="space-y-4">
              <div className="flex justify-between items-center px-2">
               <div>
-                <p className="text-[10px] font-black uppercase text-red-500 tracking-[0.3em] mb-1">Total Confirmado</p>
+                <p className="text-[10px] font-black uppercase text-red-500 tracking-[0.3em] mb-1">Montante de Compra</p>
                 <p className="text-4xl font-black text-white tracking-tighter italic">R$ {total.toFixed(2).replace('.', ',')}</p>
               </div>
-              <div className="bg-white/5 px-5 py-3 rounded-2xl border border-white/10 text-center backdrop-blur-md">
-                <p className="text-[10px] font-black text-white uppercase tracking-widest">{cart.length} Vol.</p>
+              <div className="bg-white/5 px-5 py-3 rounded-2xl border border-white/10 text-center">
+                <p className="text-[10px] font-black text-white uppercase tracking-widest">{cart.length} SKUs</p>
               </div>
             </div>
             <button 
@@ -306,7 +309,7 @@ const Cart: React.FC<CartProps> = ({ cart, user, sellers, updateQuantity, remove
               {isGenerating ? <Loader2 className="w-6 h-6 animate-spin" /> : (
                 <>
                   <Download className="w-5 h-5" />
-                  Gerar e Baixar PDF
+                  Gerar Pedido & Baixar PDF
                 </>
               )}
             </button>
@@ -317,31 +320,31 @@ const Cart: React.FC<CartProps> = ({ cart, user, sellers, updateQuantity, remove
               <div className="inline-flex items-center justify-center w-12 h-12 bg-emerald-500/20 text-emerald-500 rounded-full mb-3">
                 <CheckCircle2 className="w-7 h-7" />
               </div>
-              <h3 className="text-xl font-black text-white uppercase tracking-tighter italic leading-none">Pedido #{lastOrder.id} Gerado!</h3>
-              <p className="text-[9px] text-slate-500 font-bold uppercase tracking-[0.2em] mt-2">O download iniciou. Envie o anexo para a vendedora:</p>
+              <h3 className="text-xl font-black text-white uppercase tracking-tighter italic leading-none">Pedido #{lastOrder.id} Sucesso!</h3>
+              <p className="text-[9px] text-slate-500 font-bold uppercase tracking-[0.2em] mt-2">PDF disponível no histórico. Envie agora os detalhes:</p>
             </div>
             
             <button 
-              onClick={() => handleShareAndDownloadPDF(lastOrder)}
-              className="w-full flex items-center justify-center gap-4 py-6 bg-blue-600 hover:bg-blue-500 text-white rounded-[30px] font-black text-xs uppercase tracking-[0.3em] shadow-[0_15px_30px_rgba(37,99,235,0.3)] transition-all active:scale-95"
+              onClick={openWhatsAppWithDetails}
+              className="w-full flex items-center justify-center gap-4 py-6 bg-emerald-600 hover:bg-emerald-500 text-white rounded-[30px] font-black text-xs uppercase tracking-[0.3em] shadow-[0_15px_30px_rgba(16,185,129,0.3)] transition-all active:scale-95"
             >
-              <Share2 className="w-5 h-5" />
-              Compartilhar PDF (Anexo)
+              <MessageSquare className="w-5 h-5" />
+              Enviar Detalhes WhatsApp
             </button>
 
             <button 
-              onClick={openWhatsAppDirect}
-              className="w-full flex items-center justify-center gap-4 py-5 bg-emerald-600/10 border border-emerald-500/30 text-emerald-500 rounded-[25px] font-black text-xs uppercase tracking-[0.3em] transition-all active:scale-95"
+              onClick={() => handleShareAndDownloadPDF(lastOrder)}
+              className="w-full flex items-center justify-center gap-4 py-4 bg-white/5 border border-white/10 text-slate-300 rounded-[25px] font-black text-[9px] uppercase tracking-[0.3em] transition-all"
             >
-              <MessageSquare className="w-5 h-5" />
-              Notificar via WhatsApp
+              <Share2 className="w-4 h-4" />
+              Recompartilhar PDF
             </button>
             
             <button 
               onClick={() => onOrderCreated(lastOrder)}
               className="w-full py-3 text-slate-500 text-[8px] font-black uppercase tracking-[0.4em] hover:text-white transition-colors"
             >
-              Concluir e Voltar ao Início
+              Concluir e Iniciar Nova Compra
             </button>
           </div>
         )}
