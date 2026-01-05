@@ -1,7 +1,7 @@
 
 import React, { useState } from 'react';
-import { ClientData, Product, Order, CartItem, OrderStatus } from '../../types';
-import { ShoppingCart, List, History, User, LogOut, PackageSearch, UserCircle } from 'lucide-react';
+import { ClientData, Product, Order, CartItem, OrderStatus, Seller } from '../../types';
+import { ShoppingCart, List, History, User, LogOut, PackageSearch, UserCircle, Bell } from 'lucide-react';
 import Catalog from './Catalog';
 import Cart from './Cart';
 import OrderHistory from './OrderHistory';
@@ -10,12 +10,13 @@ interface ClientDashboardProps {
   user: ClientData;
   products: Product[];
   orders: Order[];
+  sellers: Seller[];
   setOrders: React.Dispatch<React.SetStateAction<Order[]>>;
   onLogout: () => void;
 }
 
 const ClientDashboard: React.FC<ClientDashboardProps> = ({ 
-  user, products, orders, setOrders, onLogout 
+  user, products, orders, sellers, setOrders, onLogout 
 }) => {
   const [activeTab, setActiveTab] = useState<'catalog' | 'cart' | 'history' | 'profile'>('catalog');
   const [cart, setCart] = useState<CartItem[]>([]);
@@ -52,33 +53,40 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({
   const clientOrders = orders.filter(o => o.clientId === user.id);
 
   return (
-    <div className="flex flex-col h-screen bg-slate-50 max-w-lg mx-auto shadow-[0_0_100px_rgba(0,0,0,0.1)] overflow-hidden relative font-sans">
-      {/* Header - Glassmorphism */}
-      <header className="bg-white/80 backdrop-blur-xl border-b border-slate-200 p-6 sticky top-0 z-30">
-        <div className="flex items-center justify-between mb-4">
+    <div className="flex flex-col h-screen bg-black max-w-lg mx-auto shadow-[0_0_100px_rgba(220,38,38,0.1)] overflow-hidden relative font-sans text-white border-x border-white/5">
+      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full h-[300px] bg-red-600/10 blur-[120px] pointer-events-none" />
+
+      {/* Header Premium Dark */}
+      <header className="bg-black/40 backdrop-blur-3xl border-b border-white/5 p-8 sticky top-0 z-30">
+        <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-2">
-            <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center rotate-3 shadow-lg shadow-blue-200">
+            <div className="w-9 h-9 bg-red-600 rounded-xl flex items-center justify-center rotate-3 shadow-[0_0_20px_rgba(220,38,38,0.4)]">
               <PackageSearch className="w-5 h-5 text-white" />
             </div>
-            <h1 className="text-xl font-black italic tracking-tighter text-slate-900">ATACADÃO</h1>
+            <h1 className="text-2xl font-black italic tracking-tighter text-white uppercase">ATACADÃO</h1>
           </div>
-          <button onClick={onLogout} className="p-2 text-red-500 hover:bg-red-50 rounded-xl transition-all">
-            <LogOut className="w-5 h-5" />
-          </button>
+          <div className="flex items-center gap-3">
+            <button className="p-3 bg-white/5 text-slate-400 hover:text-white rounded-2xl border border-white/5 transition-all"><Bell className="w-5 h-5" /></button>
+            <button onClick={onLogout} className="p-3 bg-red-600/10 text-red-500 hover:bg-red-600 hover:text-white rounded-2xl border border-red-500/20 transition-all">
+              <LogOut className="w-5 h-5" />
+            </button>
+          </div>
         </div>
-        <div className="flex items-center gap-4">
-          <div className="w-12 h-12 rounded-2xl bg-slate-100 flex items-center justify-center font-black text-blue-600 shadow-inner border border-slate-200">
-            {user.name.charAt(0)}
+        <div className="flex items-center gap-5">
+          <div className="w-14 h-14 rounded-[22px] bg-gradient-to-tr from-red-600 to-red-400 p-0.5 shadow-xl shadow-red-900/20">
+            <div className="w-full h-full rounded-[20px] bg-black flex items-center justify-center font-black text-white text-xl border border-white/10">
+              {user.name.charAt(0)}
+            </div>
           </div>
-          <div>
-            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Loja Autorizada</p>
-            <p className="font-bold text-slate-800 truncate max-w-[200px]">{user.name}</p>
+          <div className="min-w-0">
+            <p className="text-[10px] font-black text-red-500 uppercase tracking-[0.3em]">Cliente Gold</p>
+            <p className="font-black text-white truncate uppercase text-lg tracking-tight italic">{user.name}</p>
           </div>
         </div>
       </header>
 
-      {/* Content */}
-      <main className="flex-1 overflow-y-auto pb-32">
+      {/* Content Area */}
+      <main className="flex-1 overflow-y-auto pb-40 scrollbar-hide relative z-10">
         {activeTab === 'catalog' && (
           <Catalog products={products} onAddToCart={addToCart} />
         )}
@@ -86,6 +94,7 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({
           <Cart 
             cart={cart} 
             user={user} 
+            sellers={sellers}
             updateQuantity={updateQuantity} 
             removeFromCart={removeFromCart} 
             onOrderCreated={(newOrder) => {
@@ -98,55 +107,61 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({
           <OrderHistory orders={clientOrders} />
         )}
         {activeTab === 'profile' && (
-          <div className="p-8 space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-            <div className="text-center">
-              <div className="w-24 h-24 bg-white border-8 border-slate-100 rounded-[40px] flex items-center justify-center mx-auto mb-4 shadow-xl">
-                <UserCircle className="w-12 h-12 text-blue-600" />
+          <div className="p-10 space-y-8 animate-in fade-in slide-in-from-bottom-8 duration-700">
+            <div className="text-center pb-10 border-b border-white/5">
+              <div className="w-28 h-28 bg-red-600/10 border-4 border-white/5 rounded-[45px] flex items-center justify-center mx-auto mb-6 shadow-2xl relative">
+                <UserCircle className="w-14 h-14 text-red-500" />
+                <div className="absolute -bottom-2 -right-2 bg-emerald-500 w-8 h-8 rounded-full border-4 border-black flex items-center justify-center">
+                  <div className="w-2 h-2 bg-white rounded-full animate-ping" />
+                </div>
               </div>
-              <h2 className="text-2xl font-black text-slate-800">Meus Dados</h2>
-              <p className="text-slate-400 text-sm font-medium">Informações da sua conta comercial</p>
+              <h2 className="text-3xl font-black text-white italic tracking-tighter">Perfil Corporativo</h2>
+              <p className="text-slate-500 text-[10px] font-black uppercase tracking-[0.3em] mt-2">Configurações de Identidade</p>
             </div>
             
             <div className="space-y-4">
-              <InfoCard label="CNPJ/CPF" value={user.cpfCnpj} />
-              <InfoCard label="E-mail" value={user.email} />
-              <InfoCard label="Telefone" value={user.phone} />
-              <InfoCard label="Endereço de Entrega" value={user.address} />
+              <InfoCard label="Cadastro Nacional" value={user.cpfCnpj} />
+              <InfoCard label="E-mail Administrativo" value={user.email} />
+              <InfoCard label="Contato Direto" value={user.phone} />
+              <InfoCard label="Logradouro de Entrega" value={user.address} />
             </div>
+
+            <button className="w-full py-5 border border-white/5 bg-white/5 hover:bg-white/10 rounded-[28px] text-[10px] font-black uppercase tracking-[0.4em] transition-all">Editar Dados Cadastrais</button>
           </div>
         )}
       </main>
 
-      {/* Floating Bottom Nav */}
-      <div className="fixed bottom-6 left-1/2 -translate-x-1/2 w-[90%] max-w-[400px] bg-slate-900/90 backdrop-blur-xl border border-white/10 rounded-[32px] flex items-center justify-around py-3 px-4 shadow-[0_20px_50px_rgba(0,0,0,0.3)] z-50">
-        <NavButton active={activeTab === 'catalog'} onClick={() => setActiveTab('catalog')} icon={List} label="Catálogo" />
+      {/* Dark Nav Floating Bar */}
+      <div className="fixed bottom-8 left-1/2 -translate-x-1/2 w-[92%] max-w-[440px] bg-white/5 backdrop-blur-3xl border border-white/10 rounded-[35px] flex items-center justify-around py-4 px-3 shadow-[0_20px_50px_rgba(0,0,0,0.8)] z-50">
+        <NavButton active={activeTab === 'catalog'} onClick={() => setActiveTab('catalog')} icon={List} label="Ofertas" />
         <NavButton active={activeTab === 'cart'} onClick={() => setActiveTab('cart')} icon={ShoppingCart} label="Carrinho" count={cartCount} />
         <NavButton active={activeTab === 'history'} onClick={() => setActiveTab('history')} icon={History} label="Pedidos" />
-        <NavButton active={activeTab === 'profile'} onClick={() => setActiveTab('profile')} icon={User} label="Perfil" />
+        <NavButton active={activeTab === 'profile'} onClick={() => setActiveTab('profile')} icon={User} label="Conta" />
       </div>
     </div>
   );
 };
 
 const InfoCard = ({ label, value }: { label: string; value: string }) => (
-  <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm">
-    <label className="text-[10px] font-black uppercase text-black tracking-[0.2em] mb-1 block">{label}</label>
-    <p className="font-bold text-slate-700 leading-relaxed">{value}</p>
+  <div className="bg-white/5 p-6 rounded-[30px] border border-white/5 shadow-inner transition-all hover:border-red-500/40 group">
+    <label className="text-[10px] font-black uppercase text-red-600 tracking-[0.3em] mb-2 block group-hover:text-red-400 transition-colors">{label}</label>
+    <p className="font-bold text-white leading-relaxed text-sm tracking-wide">{value}</p>
   </div>
 );
 
 const NavButton = ({ active, onClick, icon: Icon, label, count }: any) => (
   <button 
     onClick={onClick}
-    className={`flex flex-col items-center p-2 rounded-2xl transition-all relative ${active ? 'text-blue-400' : 'text-slate-500'}`}
+    className={`flex flex-col items-center p-3 rounded-2xl transition-all relative ${active ? 'text-red-500' : 'text-slate-500'}`}
   >
     {count > 0 && (
-      <span className="absolute -top-1 right-2 bg-blue-500 text-white text-[10px] font-black w-5 h-5 rounded-full flex items-center justify-center ring-4 ring-slate-900 animate-pulse">
+      <span className="absolute -top-1 right-2 bg-red-600 text-white text-[9px] font-black w-6 h-6 rounded-full flex items-center justify-center ring-4 ring-black shadow-lg shadow-red-900/40">
         {count}
       </span>
     )}
-    <Icon className={`w-6 h-6 mb-1 ${active ? 'scale-110' : 'scale-100 opacity-60'}`} />
-    <span className="text-[8px] font-black uppercase tracking-widest">{label}</span>
+    <Icon className={`w-6 h-6 mb-1 transition-transform ${active ? 'scale-110 drop-shadow-[0_0_8px_rgba(220,38,38,0.5)]' : 'scale-100 opacity-40'}`} />
+    <span className="text-[9px] font-black uppercase tracking-widest">{label}</span>
+    {active && <div className="absolute -bottom-1 w-1 h-1 bg-red-600 rounded-full" />}
   </button>
 );
 

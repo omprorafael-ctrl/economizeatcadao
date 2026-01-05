@@ -5,46 +5,55 @@
 
 @layer base {
   body {
-    @apply antialiased text-slate-900 bg-slate-50 selection:bg-blue-600/20 selection:text-blue-900;
+    @apply antialiased text-white bg-[#0a0a0a] selection:bg-red-600/30 selection:text-white;
     -webkit-tap-highlight-color: transparent;
   }
 
   /* Custom Professional Scrollbar */
   ::-webkit-scrollbar {
-    width: 5px;
-    height: 5px;
+    width: 6px;
+    height: 6px;
   }
 
   ::-webkit-scrollbar-track {
-    @apply bg-transparent;
+    @apply bg-black/20;
   }
 
   ::-webkit-scrollbar-thumb {
-    @apply bg-slate-300 rounded-full hover:bg-slate-400 transition-colors;
+    @apply bg-red-900/50 rounded-full hover:bg-red-600 transition-colors;
   }
 
-  /* Focus rings optimization */
   :focus-visible {
-    @apply outline-none ring-2 ring-blue-500 ring-offset-2 ring-offset-slate-50;
+    @apply outline-none ring-2 ring-red-500 ring-offset-2 ring-offset-black;
   }
 }
 
-/* Animations Utilities */
+.dark-glass {
+  @apply bg-white/5 backdrop-blur-xl border border-white/10;
+}
+
+.red-glow {
+  box-shadow: 0 0 20px rgba(220, 38, 38, 0.2);
+}
+
+.red-gradient {
+  background: linear-gradient(135deg, #e11d48 0%, #dc2626 100%);
+}
+
 .scrollbar-hide::-webkit-scrollbar {
   display: none;
 }
 
-@keyframes float {
-  0% { transform: translateY(0px); }
-  50% { transform: translateY(-8px); }
-  100% { transform: translateY(0px); }
+@keyframes pulse-red {
+  0% { box-shadow: 0 0 0 0 rgba(220, 38, 38, 0.4); }
+  70% { box-shadow: 0 0 0 10px rgba(220, 38, 38, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(220, 38, 38, 0); }
 }
 
-.animate-float {
-  animation: float 5s ease-in-out infinite;
+.animate-pulse-red {
+  animation: pulse-red 2s infinite;
 }
 
-/* Layout Transitions */
 .page-transition {
-  @apply animate-in fade-in duration-500;
+  @apply animate-in fade-in duration-700;
 }

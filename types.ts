@@ -19,6 +19,14 @@ export interface ClientData extends User {
   address: string;
 }
 
+export interface Seller {
+  id: string;
+  name: string;
+  phone: string;
+  active: boolean;
+  createdAt: string;
+}
+
 export interface Product {
   id: string;
   code: string;
@@ -51,6 +59,8 @@ export interface Order {
   status: OrderStatus;
   createdAt: string;
   items: OrderItem[];
+  sellerId?: string;
+  sellerName?: string;
 }
 
 export interface CartItem extends Product {

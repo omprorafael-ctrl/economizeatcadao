@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { UserRole, User, Product, ClientData, Order } from './types';
+import { UserRole, User, Product, ClientData, Order, Seller } from './types';
 import ManagerDashboard from './components/Manager/ManagerDashboard';
 import ClientDashboard from './components/Client/ClientDashboard';
 import Login from './components/Auth/Login';
@@ -15,6 +15,7 @@ const App: React.FC = () => {
   const [clients, setClients] = useState<ClientData[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
   const [managers, setManagers] = useState<User[]>([]);
+  const [sellers, setSellers] = useState<Seller[]>([]);
 
   useEffect(() => {
     const unsubscribeAuth = onAuthStateChanged(auth, async (firebaseUser) => {
@@ -47,13 +48,7 @@ const App: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    if (!currentUser) {
-      setProducts([]);
-      setClients([]);
-      setOrders([]);
-      setManagers([]);
-      return;
-    }
+    if (!currentUser) return;
 
     const unsubProducts = onSnapshot(collection(db, 'products'), (snapshot) => {
       setProducts(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Product)));
@@ -69,10 +64,15 @@ const App: React.FC = () => {
       setManagers(allUsers.filter(u => u.role === UserRole.MANAGER));
     });
 
+    const unsubSellers = onSnapshot(collection(db, 'sellers'), (snapshot) => {
+      setSellers(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Seller)));
+    });
+
     return () => {
       unsubProducts();
       unsubOrders();
       unsubUsers();
+      unsubSellers();
     };
   }, [currentUser]);
 
@@ -82,16 +82,16 @@ const App: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-[#020617] text-white">
+      <div className="min-h-screen flex flex-col items-center justify-center bg-[#0a0a0a] text-white">
         <div className="relative">
-          <div className="w-20 h-20 border-4 border-blue-600/20 border-t-blue-600 rounded-full animate-spin" />
+          <div className="w-24 h-24 border-4 border-red-900/30 border-t-red-600 rounded-full animate-spin" />
           <div className="absolute inset-0 flex items-center justify-center">
-            <div className="w-2 h-2 bg-blue-600 rounded-full animate-pulse" />
+            <div className="w-3 h-3 bg-red-600 rounded-full animate-pulse shadow-[0_0_15px_rgba(220,38,38,0.8)]" />
           </div>
         </div>
-        <div className="mt-8 text-center animate-pulse">
-          <h1 className="text-2xl font-black italic tracking-tighter opacity-80 text-blue-500">ATACADÃO</h1>
-          <p className="text-[10px] font-bold tracking-[0.4em] opacity-30 mt-1 uppercase">Validando Identidade</p>
+        <div className="mt-10 text-center animate-in fade-in slide-in-from-bottom-4 duration-1000">
+          <h1 className="text-4xl font-black italic tracking-tighter text-white">ATACADÃO</h1>
+          <p className="text-[10px] font-bold tracking-[0.5em] text-red-500 mt-2 uppercase">Sincronizando Sistema</p>
         </div>
       </div>
     );
@@ -102,7 +102,7 @@ const App: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 font-sans selection:bg-blue-100 selection:text-blue-900 page-transition">
+    <div className="min-h-screen bg-[#0a0a0a] text-white font-sans page-transition">
       {currentUser.role === UserRole.MANAGER ? (
         <ManagerDashboard 
           user={currentUser} 
@@ -114,6 +114,8 @@ const App: React.FC = () => {
           setOrders={setOrders}
           managers={managers}
           setManagers={setManagers}
+          sellers={sellers}
+          setSellers={setSellers}
           onLogout={handleLogout} 
         />
       ) : (
@@ -121,6 +123,7 @@ const App: React.FC = () => {
           user={currentUser as ClientData} 
           products={products}
           orders={orders}
+          sellers={sellers}
           setOrders={setOrders}
           onLogout={handleLogout} 
         />

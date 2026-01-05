@@ -8,7 +8,9 @@ import {
   Package, 
   LayoutGrid, 
   LayoutList,
-  Check
+  Check,
+  Flame,
+  Zap
 } from 'lucide-react';
 
 interface CatalogProps {
@@ -37,11 +39,10 @@ const Catalog: React.FC<CatalogProps> = ({ products, onAddToCart }) => {
     const qty = quantities[product.id] || 1;
     onAddToCart(product, qty);
     
-    // Efeito visual de confirmação
     setAddedItems(prev => ({ ...prev, [product.id]: true }));
     setTimeout(() => {
       setAddedItems(prev => ({ ...prev, [product.id]: false }));
-    }, 1500);
+    }, 1200);
   };
 
   const filteredProducts = products.filter(p => {
@@ -51,55 +52,57 @@ const Catalog: React.FC<CatalogProps> = ({ products, onAddToCart }) => {
   });
 
   return (
-    <div className="flex flex-col animate-in fade-in duration-500">
-      {/* Search and Filters Header */}
-      <div className="p-6 bg-white sticky top-0 z-20 space-y-5 shadow-sm">
-        <div className="flex items-center gap-3">
-          <div className="relative flex-1 group">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 w-5 h-5 group-focus-within:text-blue-600 transition-colors" />
-            <input 
-              type="text"
-              placeholder="O que você precisa hoje?"
-              className="w-full pl-12 pr-4 py-4 bg-slate-50 border border-slate-100 rounded-2xl focus:ring-4 focus:ring-blue-500/10 focus:bg-white outline-none font-black text-black text-sm transition-all"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-            />
+    <div className="flex flex-col animate-in fade-in duration-700 bg-transparent min-h-full">
+      {/* Search Header Dark */}
+      <div className="bg-black/40 backdrop-blur-3xl sticky top-0 z-20 shadow-sm pt-6 border-b border-white/5">
+        <div className="px-8 pb-6 space-y-5">
+          <div className="flex items-center gap-4">
+            <div className="relative flex-1 group">
+              <Search className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-500 w-5 h-5 group-focus-within:text-red-600 transition-colors" />
+              <input 
+                type="text"
+                placeholder="Código ou nome do produto..."
+                className="w-full pl-14 pr-6 py-5 bg-white/5 border border-white/5 rounded-[28px] focus:ring-4 focus:ring-red-500/10 focus:bg-white/10 focus:border-red-500/40 outline-none font-bold text-white text-sm transition-all placeholder:text-slate-600"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+              />
+            </div>
+            <div className="flex bg-white/5 p-1 rounded-2xl border border-white/5">
+              <button 
+                onClick={() => setViewMode('grid')}
+                className={`p-3 rounded-xl transition-all ${viewMode === 'grid' ? 'bg-red-600 text-white shadow-lg shadow-red-900/50' : 'text-slate-500 hover:text-white'}`}
+              >
+                <LayoutGrid className="w-5 h-5" />
+              </button>
+              <button 
+                onClick={() => setViewMode('list')}
+                className={`p-3 rounded-xl transition-all ${viewMode === 'list' ? 'bg-red-600 text-white shadow-lg shadow-red-900/50' : 'text-slate-500 hover:text-white'}`}
+              >
+                <LayoutList className="w-5 h-5" />
+              </button>
+            </div>
           </div>
-          <div className="flex bg-slate-100 p-1.5 rounded-2xl">
-            <button 
-              onClick={() => setViewMode('grid')}
-              className={`p-2.5 rounded-xl transition-all ${viewMode === 'grid' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-400'}`}
-            >
-              <LayoutGrid className="w-5 h-5" />
-            </button>
-            <button 
-              onClick={() => setViewMode('list')}
-              className={`p-2.5 rounded-xl transition-all ${viewMode === 'list' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-400'}`}
-            >
-              <LayoutList className="w-5 h-5" />
-            </button>
+          
+          <div className="flex gap-3 overflow-x-auto pb-4 scrollbar-hide -mx-2 px-2">
+            {groups.map(group => (
+              <button
+                key={group}
+                onClick={() => setSelectedGroup(group)}
+                className={`px-8 py-3 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] whitespace-nowrap transition-all border ${
+                  selectedGroup === group 
+                  ? 'bg-red-600 text-white border-red-600 shadow-xl shadow-red-900/30' 
+                  : 'bg-white/5 text-slate-500 border-white/5 hover:border-red-500/50 hover:text-white'
+                }`}
+              >
+                {group}
+              </button>
+            ))}
           </div>
-        </div>
-        
-        <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
-          {groups.map(group => (
-            <button
-              key={group}
-              onClick={() => setSelectedGroup(group)}
-              className={`px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest whitespace-nowrap transition-all ${
-                selectedGroup === group 
-                ? 'bg-blue-600 text-white shadow-lg shadow-blue-200 ring-2 ring-blue-100' 
-                : 'bg-slate-100 text-slate-400 hover:bg-slate-200'
-              }`}
-            >
-              {group}
-            </button>
-          ))}
         </div>
       </div>
 
-      {/* Product Display Area */}
-      <div className={`p-6 ${viewMode === 'grid' ? 'grid grid-cols-2 gap-5' : 'space-y-4'}`}>
+      {/* Grid de Produtos Premium Dark */}
+      <div className={`p-8 ${viewMode === 'grid' ? 'grid grid-cols-2 gap-5' : 'space-y-5'}`}>
         {filteredProducts.length > 0 ? (
           filteredProducts.map(product => {
             const qty = quantities[product.id] || 1;
@@ -107,40 +110,35 @@ const Catalog: React.FC<CatalogProps> = ({ products, onAddToCart }) => {
 
             if (viewMode === 'grid') {
               return (
-                <div key={product.id} className="bg-white rounded-[32px] overflow-hidden shadow-sm border border-slate-100 flex flex-col group hover:shadow-xl hover:-translate-y-1 transition-all duration-300">
-                  <div className="h-40 bg-slate-100 relative overflow-hidden p-4">
-                    <img 
-                      src={product.imageUrl} 
-                      alt={product.description} 
-                      className="w-full h-full object-contain mix-blend-multiply group-hover:scale-110 transition-transform duration-700"
-                    />
-                    <div className="absolute bottom-3 left-3 px-2 py-1 bg-white/90 backdrop-blur-sm rounded-lg text-[9px] font-black text-slate-400 shadow-sm uppercase tracking-tighter">
-                      REF {product.code}
-                    </div>
-                  </div>
+                <div key={product.id} className="bg-white/5 rounded-[38px] overflow-hidden border border-white/5 flex flex-col group hover:shadow-[0_20px_50px_rgba(220,38,38,0.15)] hover:border-red-500/30 transition-all duration-500 relative">
                   <div className="p-5 flex-1 flex flex-col">
-                    <div className="mb-4">
-                      <p className="text-[9px] font-black text-blue-600 uppercase tracking-widest mb-1">{product.group}</p>
-                      <h3 className="text-sm font-bold text-slate-800 line-clamp-2 leading-tight h-10">{product.description}</h3>
+                    <div className="mb-5">
+                      <div className="flex items-center justify-between mb-3">
+                        <span className="px-3 py-1 bg-red-600/10 text-red-500 rounded-lg text-[9px] font-black uppercase tracking-[0.2em] border border-red-500/20 flex items-center gap-1.5">
+                          <Zap className="w-2.5 h-2.5 fill-red-500" /> {product.group}
+                        </span>
+                        <span className="text-[8px] font-black text-slate-600 uppercase tracking-tighter">REF: {product.code}</span>
+                      </div>
+                      <h3 className="text-[13px] font-bold text-white line-clamp-3 leading-tight h-9 mb-4 uppercase tracking-wide group-hover:text-red-400 transition-colors">{product.description}</h3>
+                      <div className="h-[2px] w-10 bg-red-600 mb-5 rounded-full" />
+                      <p className="text-2xl font-black text-white tracking-tighter italic">
+                        <span className="text-[10px] font-black text-red-500 mr-1.5 not-italic uppercase">R$</span>
+                        {product.price.toFixed(2).replace('.', ',')}
+                      </p>
                     </div>
-                    
-                    <p className="text-2xl font-black text-slate-900 mb-4 tracking-tighter">
-                      <span className="text-xs font-bold text-slate-400 mr-1 italic">R$</span>
-                      {product.price.toFixed(2).replace('.', ',')}
-                    </p>
 
-                    <div className="space-y-3 mt-auto">
-                      <div className="flex items-center justify-between bg-slate-50 p-1.5 rounded-2xl border border-slate-100">
+                    <div className="space-y-3 mt-auto pt-4 border-t border-white/5">
+                      <div className="flex items-center justify-between bg-black/40 p-1.5 rounded-2xl border border-white/5 shadow-inner">
                         <button 
                           onClick={() => handleQtyChange(product.id, -1)}
-                          className="w-10 h-10 rounded-xl bg-white text-slate-900 shadow-sm border border-slate-200 flex items-center justify-center active:scale-90 transition-transform"
+                          className="w-8 h-8 rounded-xl bg-white/5 text-white shadow-sm border border-white/10 flex items-center justify-center active:scale-90 transition-transform hover:bg-red-600"
                         >
                           <Minus className="w-4 h-4" />
                         </button>
-                        <span className="font-black text-black text-lg">{qty}</span>
+                        <span className="font-black text-white text-base">{qty}</span>
                         <button 
                           onClick={() => handleQtyChange(product.id, 1)}
-                          className="w-10 h-10 rounded-xl bg-white text-slate-900 shadow-sm border border-slate-200 flex items-center justify-center active:scale-90 transition-transform"
+                          className="w-8 h-8 rounded-xl bg-white/5 text-white shadow-sm border border-white/10 flex items-center justify-center active:scale-90 transition-transform hover:bg-red-600"
                         >
                           <Plus className="w-4 h-4" />
                         </button>
@@ -148,61 +146,55 @@ const Catalog: React.FC<CatalogProps> = ({ products, onAddToCart }) => {
                       
                       <button 
                         onClick={() => handleAdd(product)}
-                        className={`w-full py-4 rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-lg active:scale-95 transition-all flex items-center justify-center gap-2 ${
-                          isAdded ? 'bg-emerald-500 text-white shadow-emerald-200' : 'bg-slate-900 text-white hover:bg-blue-600 shadow-slate-200'
+                        className={`w-full py-4 rounded-2xl text-[10px] font-black uppercase tracking-[0.3em] shadow-2xl active:scale-95 transition-all flex items-center justify-center gap-2 ${
+                          isAdded ? 'bg-emerald-600 text-white shadow-emerald-900/40' : 'bg-red-600 text-white hover:bg-red-500 shadow-red-900/50'
                         }`}
                       >
-                        {isAdded ? <Check className="w-4 h-4 animate-in zoom-in" /> : <Plus className="w-4 h-4" />}
-                        {isAdded ? 'Adicionado' : 'Comprar'}
+                        {isAdded ? <Check className="w-4 h-4" /> : 'Confirmar'}
                       </button>
                     </div>
                   </div>
                 </div>
               );
             } else {
-              // LIST VIEW
               return (
-                <div key={product.id} className="bg-white rounded-[24px] p-4 shadow-sm border border-slate-100 flex gap-4 hover:shadow-md transition-all">
-                  <div className="w-20 h-20 bg-slate-50 rounded-2xl p-2 flex-shrink-0">
-                    <img src={product.imageUrl} className="w-full h-full object-contain mix-blend-multiply" alt="" />
+                <div key={product.id} className="bg-white/5 rounded-[32px] p-6 border border-white/5 flex flex-col sm:flex-row sm:items-center gap-6 hover:shadow-xl hover:border-red-500/30 transition-all group">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-3 mb-2">
+                      <span className="px-3 py-1 bg-red-600 text-white rounded-lg text-[9px] font-black uppercase tracking-widest shadow-lg shadow-red-900/20">SKU {product.code}</span>
+                      <span className="text-[9px] font-black text-slate-500 uppercase tracking-[0.2em]">{product.group}</span>
+                    </div>
+                    <h3 className="text-base font-bold text-white leading-snug uppercase truncate tracking-wide">{product.description}</h3>
+                    <p className="text-xl font-black text-red-500 mt-2 italic">
+                      <span className="text-[10px] text-white/40 mr-1 not-italic">R$</span>
+                      {product.price.toFixed(2).replace('.', ',')}
+                    </p>
                   </div>
-                  <div className="flex-1 flex flex-col justify-between">
-                    <div>
-                      <div className="flex items-start justify-between gap-2">
-                        <h3 className="text-xs font-bold text-slate-800 leading-snug line-clamp-2">{product.description}</h3>
-                        <span className="text-[10px] font-black text-slate-300 uppercase shrink-0">#{product.code}</span>
-                      </div>
-                      <p className="text-[11px] font-black text-slate-900 mt-1">
-                        <span className="text-[9px] text-slate-400 mr-0.5 opacity-50 italic">R$</span>
-                        {product.price.toFixed(2).replace('.', ',')}
-                      </p>
-                    </div>
 
-                    <div className="flex items-center justify-between gap-3 mt-2">
-                      <div className="flex items-center bg-slate-50 p-1 rounded-xl border border-slate-100 scale-90 origin-left">
-                        <button onClick={() => handleQtyChange(product.id, -1)} className="p-1.5 text-black hover:text-blue-600"><Minus className="w-3 h-3" /></button>
-                        <span className="w-8 text-center font-black text-black text-sm">{qty}</span>
-                        <button onClick={() => handleQtyChange(product.id, 1)} className="p-1.5 text-black hover:text-blue-600"><Plus className="w-3 h-3" /></button>
-                      </div>
-                      
-                      <button 
-                        onClick={() => handleAdd(product)}
-                        className={`px-4 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shrink-0 ${
-                          isAdded ? 'bg-emerald-500 text-white' : 'bg-blue-600 text-white shadow-md shadow-blue-100'
-                        }`}
-                      >
-                        {isAdded ? <Check className="w-3 h-3" /> : 'Add'}
-                      </button>
+                  <div className="flex items-center justify-between sm:justify-end gap-4 border-t sm:border-t-0 border-white/5 pt-4 sm:pt-0">
+                    <div className="flex items-center bg-black/40 p-1.5 rounded-2xl border border-white/5">
+                      <button onClick={() => handleQtyChange(product.id, -1)} className="p-2 text-slate-500 hover:text-white transition-colors"><Minus className="w-4 h-4" /></button>
+                      <span className="w-10 text-center font-black text-white text-lg">{qty}</span>
+                      <button onClick={() => handleQtyChange(product.id, 1)} className="p-2 text-slate-500 hover:text-white transition-colors"><Plus className="w-4 h-4" /></button>
                     </div>
+                    
+                    <button 
+                      onClick={() => handleAdd(product)}
+                      className={`px-8 py-4 rounded-[20px] text-[10px] font-black uppercase tracking-[0.2em] transition-all shrink-0 min-w-[130px] flex items-center justify-center gap-2 ${
+                        isAdded ? 'bg-emerald-600 text-white' : 'bg-red-600 text-white shadow-xl shadow-red-900/30 hover:bg-red-500'
+                      }`}
+                    >
+                      {isAdded ? <Check className="w-5 h-5" /> : 'Adicionar'}
+                    </button>
                   </div>
                 </div>
               );
             }
           })
         ) : (
-          <div className="col-span-2 py-32 text-center flex flex-col items-center opacity-30">
-            <Package className="w-20 h-20 mb-4" />
-            <p className="text-xl font-black uppercase tracking-widest text-black">Nenhum produto</p>
+          <div className="col-span-2 py-40 text-center flex flex-col items-center opacity-20">
+            <Package className="w-24 h-24 mb-6 text-slate-500" />
+            <p className="text-base font-black uppercase tracking-[0.4em] text-white">Estoque não encontrado</p>
           </div>
         )}
       </div>

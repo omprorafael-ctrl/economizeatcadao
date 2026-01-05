@@ -10,11 +10,13 @@ import {
   UserPlus, 
   X, 
   Building2, 
-  Lock,
   Search,
-  CheckCircle2,
   Loader2,
-  Key
+  Key,
+  ShieldCheck,
+  ChevronRight,
+  // Added ArrowRight to fix the "Cannot find name 'ArrowRight'" error
+  ArrowRight
 } from 'lucide-react';
 import { db, firebaseConfig } from '../../firebaseConfig';
 import { doc, setDoc } from 'firebase/firestore';
@@ -47,13 +49,10 @@ const ClientList: React.FC<ClientListProps> = ({ clients }) => {
     }
     
     setLoading(true);
-
-    // Criar uma instância secundária do Firebase para não deslogar o gerente atual
     const secondaryApp = initializeApp(firebaseConfig, "SecondaryApp");
     const secondaryAuth = getAuth(secondaryApp);
 
     try {
-      // 1. Criar usuário no Firebase Auth
       const userCredential = await createUserWithEmailAndPassword(
         secondaryAuth, 
         formData.email, 
@@ -61,8 +60,6 @@ const ClientList: React.FC<ClientListProps> = ({ clients }) => {
       );
       
       const uid = userCredential.user.uid;
-
-      // 2. Criar documento no Firestore com o mesmo UID
       const newClient: ClientData = {
         id: uid,
         name: formData.name,
@@ -76,22 +73,14 @@ const ClientList: React.FC<ClientListProps> = ({ clients }) => {
       };
 
       await setDoc(doc(db, 'users', uid), newClient);
-      
-      // 3. Deslogar da instância secundária para limpar memória/sessão
       await signOut(secondaryAuth);
       await deleteApp(secondaryApp);
 
-      alert(`Cliente ${formData.name} cadastrado com sucesso! Ele já pode acessar o sistema.`);
       setShowModal(false);
       setFormData({ name: '', email: '', password: '', cpfCnpj: '', phone: '', address: '' });
     } catch (error: any) {
-      console.error("Erro ao criar cliente:", error);
-      if (error.code === 'auth/email-already-in-use') {
-        alert("Este e-mail já está em uso por outro usuário.");
-      } else {
-        alert("Erro ao realizar cadastro. Verifique os dados e tente novamente.");
-      }
-      // Limpar app secundário em caso de erro também
+      console.error(error);
+      alert("Erro ao realizar cadastro.");
       try { await deleteApp(secondaryApp); } catch(e) {}
     } finally {
       setLoading(false);
@@ -105,146 +94,142 @@ const ClientList: React.FC<ClientListProps> = ({ clients }) => {
   );
 
   return (
-    <div className="space-y-6">
-      {/* Header & Busca */}
-      <div className="bg-white p-8 rounded-[32px] shadow-sm border border-slate-100 flex flex-col lg:flex-row lg:items-center justify-between gap-6">
-        <div className="relative flex-1 max-w-xl">
-          <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 w-5 h-5" />
+    <div className="space-y-8 animate-in fade-in duration-700">
+      <div className="bg-white/5 p-8 rounded-[40px] border border-white/5 flex flex-col lg:flex-row lg:items-center justify-between gap-8 backdrop-blur-2xl">
+        <div className="relative flex-1 max-w-2xl group">
+          <Search className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-500 w-5 h-5 group-focus-within:text-red-500 transition-colors" />
           <input 
             type="text" 
-            placeholder="Buscar por nome, e-mail ou CNPJ..."
-            className="w-full pl-12 pr-4 py-4 bg-slate-50 border border-transparent rounded-2xl outline-none focus:ring-2 focus:ring-blue-500/20 focus:bg-white transition-all font-black text-black"
+            placeholder="Buscar por Razão Social, CNPJ ou E-mail..."
+            className="w-full pl-14 pr-6 py-5 bg-black/30 border border-white/5 rounded-[28px] outline-none focus:ring-4 focus:ring-red-500/10 focus:bg-black/50 focus:border-red-500/40 transition-all font-bold text-white placeholder:text-slate-700"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
         </div>
         <button 
           onClick={() => setShowModal(true)}
-          className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-4 rounded-2xl font-black text-sm uppercase tracking-widest flex items-center justify-center gap-3 shadow-xl shadow-blue-200 transition-all active:scale-95"
+          className="bg-red-600 hover:bg-red-500 text-white px-10 py-5 rounded-[28px] font-black text-[10px] uppercase tracking-[0.3em] flex items-center justify-center gap-3 shadow-2xl shadow-red-900/40 transition-all active:scale-95 shrink-0"
         >
-          <UserPlus className="w-5 h-5" /> Novo Cliente
+          <UserPlus className="w-5 h-5" /> Cadastrar Novo PDV
         </button>
       </div>
 
-      {/* Grid de Clientes */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {filteredClients.map(client => (
-          <div key={client.id} className="bg-white border border-slate-100 rounded-[32px] p-6 hover:shadow-xl hover:border-blue-200 transition-all group relative overflow-hidden">
-            <div className="absolute top-0 right-0 w-32 h-32 bg-blue-50 rounded-full -mr-16 -mt-16 group-hover:bg-blue-100 transition-colors" />
+          <div key={client.id} className="bg-white/5 border border-white/5 rounded-[38px] p-8 hover:shadow-[0_20px_50px_rgba(220,38,38,0.1)] hover:border-red-500/30 transition-all group relative overflow-hidden flex flex-col h-full">
+            <div className="absolute top-0 right-0 w-32 h-32 bg-red-600/5 rounded-full -mr-16 -mt-16 group-hover:bg-red-600/10 transition-colors" />
             
-            <div className="relative z-10">
-              <div className="flex items-start justify-between mb-6">
-                <div className="bg-blue-600 text-white w-14 h-14 rounded-2xl flex items-center justify-center font-black text-xl shadow-lg shadow-blue-200">
+            <div className="relative z-10 flex flex-col h-full">
+              <div className="flex items-start justify-between mb-8">
+                <div className="bg-gradient-to-tr from-red-700 to-red-500 text-white w-16 h-16 rounded-[22px] flex items-center justify-center font-black text-2xl shadow-xl shadow-red-900/20 group-hover:scale-110 transition-transform">
                   {client.name.charAt(0)}
                 </div>
-                <div className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${client.active ? 'bg-emerald-50 text-emerald-600' : 'bg-red-50 text-red-600'}`}>
-                  {client.active ? 'Ativo' : 'Bloqueado'}
+                <div className={`px-4 py-1.5 rounded-xl text-[9px] font-black uppercase tracking-widest border ${client.active ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20' : 'bg-red-500/10 text-red-500 border-red-500/20'}`}>
+                  {client.active ? 'Autorizado' : 'Bloqueado'}
                 </div>
               </div>
               
-              <h4 className="font-black text-slate-900 text-lg mb-1 truncate">{client.name}</h4>
-              <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-6">{client.cpfCnpj || 'SEM DOCUMENTO'}</p>
+              <h4 className="font-black text-white text-xl mb-1 truncate italic tracking-tight">{client.name}</h4>
+              <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.3em] mb-8">{client.cpfCnpj || 'DOCUMENTO NÃO CADASTRADO'}</p>
               
-              <div className="space-y-4">
-                <div className="flex items-center gap-3 text-sm font-medium text-slate-600">
-                  <div className="w-8 h-8 rounded-lg bg-slate-50 flex items-center justify-center text-slate-400">
+              <div className="space-y-5 flex-1">
+                <div className="flex items-center gap-4 text-sm">
+                  <div className="w-10 h-10 rounded-xl bg-white/5 flex items-center justify-center text-red-500 border border-white/5">
                     <Mail className="w-4 h-4" />
                   </div>
-                  <span className="truncate text-black font-bold">{client.email}</span>
+                  <span className="truncate text-slate-300 font-bold">{client.email}</span>
                 </div>
-                <div className="flex items-center gap-3 text-sm font-medium text-slate-600">
-                  <div className="w-8 h-8 rounded-lg bg-slate-50 flex items-center justify-center text-slate-400">
+                <div className="flex items-center gap-4 text-sm">
+                  <div className="w-10 h-10 rounded-xl bg-white/5 flex items-center justify-center text-red-500 border border-white/5">
                     <Phone className="w-4 h-4" />
                   </div>
-                  <span className="text-black font-bold">{client.phone || 'Não informado'}</span>
+                  <span className="text-slate-300 font-bold">{client.phone || 'N/A'}</span>
                 </div>
-                <div className="flex items-start gap-3 text-sm font-medium text-slate-600">
-                  <div className="w-8 h-8 rounded-lg bg-slate-50 flex items-center justify-center text-slate-400 mt-0.5">
+                <div className="flex items-start gap-4 text-sm">
+                  <div className="w-10 h-10 rounded-xl bg-white/5 flex items-center justify-center text-red-500 border border-white/5 mt-0.5 shrink-0">
                     <MapPin className="w-4 h-4" />
                   </div>
-                  <span className="line-clamp-2 leading-relaxed text-black font-bold">{client.address || 'Endereço não cadastrado'}</span>
+                  <span className="line-clamp-2 leading-relaxed text-slate-300 font-bold">{client.address || 'Endereço pendente'}</span>
                 </div>
               </div>
 
-              <div className="mt-8 pt-6 border-t border-slate-50 flex items-center justify-between">
-                <button className="text-blue-600 text-[10px] font-black uppercase tracking-widest hover:underline">Ver Pedidos</button>
-                <button className="p-2 text-slate-300 hover:text-slate-600"><MoreHorizontal className="w-5 h-5" /></button>
+              <div className="mt-10 pt-6 border-t border-white/5 flex items-center justify-between">
+                <button className="text-red-500 text-[10px] font-black uppercase tracking-[0.3em] hover:text-red-400 transition-colors flex items-center gap-2 group/btn">
+                  Análise de Crédito <ChevronRight className="w-3 h-3 group-hover/btn:translate-x-1 transition-transform" />
+                </button>
+                <button className="p-3 bg-white/5 text-slate-500 hover:text-white rounded-xl border border-white/10"><MoreHorizontal className="w-5 h-5" /></button>
               </div>
             </div>
           </div>
         ))}
       </div>
 
-      {/* Modal de Cadastro de Cliente */}
       {showModal && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" onClick={() => setShowModal(false)} />
-          <div className="relative bg-white w-full max-w-2xl rounded-[40px] shadow-2xl overflow-hidden animate-in zoom-in-95 duration-300">
-            <div className="p-8 border-b border-slate-50 flex items-center justify-between bg-blue-600 text-white">
-              <div className="flex items-center gap-4">
-                <div className="w-12 h-12 bg-white/20 rounded-2xl flex items-center justify-center backdrop-blur-md">
-                  <Building2 className="w-6 h-6" />
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-6">
+          <div className="absolute inset-0 bg-black/90 backdrop-blur-xl" onClick={() => setShowModal(false)} />
+          <div className="relative bg-[#0a0a0a] w-full max-w-3xl rounded-[55px] shadow-[0_0_100px_rgba(220,38,38,0.2)] overflow-hidden animate-in zoom-in-95 duration-500 border border-white/5">
+            <div className="p-10 border-b border-white/5 flex items-center justify-between bg-gradient-to-r from-red-600 to-red-800 text-white">
+              <div className="flex items-center gap-5">
+                <div className="w-16 h-16 bg-white/10 rounded-[22px] flex items-center justify-center backdrop-blur-md border border-white/10">
+                  <Building2 className="w-8 h-8" />
                 </div>
                 <div>
-                  <h3 className="text-xl font-black tracking-tight text-white">Criar Acesso de Cliente</h3>
-                  <p className="text-[10px] font-bold uppercase tracking-widest opacity-70">Cadastro de Login e Perfil</p>
+                  <h3 className="text-2xl font-black tracking-tighter italic text-white uppercase">Novo Parceiro B2B</h3>
+                  <p className="text-[10px] font-bold uppercase tracking-[0.3em] opacity-70">Cadastro de Acesso e Faturamento</p>
                 </div>
               </div>
-              <button onClick={() => setShowModal(false)} className="p-2 hover:bg-white/10 rounded-xl transition-colors">
-                <X className="w-6 h-6 text-white" />
+              <button onClick={() => setShowModal(false)} className="p-4 bg-black/20 hover:bg-black/40 rounded-2xl transition-all">
+                <X className="w-7 h-7 text-white" />
               </button>
             </div>
 
-            <form onSubmit={handleCreateClient} className="p-10 space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="space-y-1">
-                  <label className="text-[10px] font-black uppercase text-black tracking-widest ml-1">Nome Fantasia</label>
+            <form onSubmit={handleCreateClient} className="p-12 space-y-8 max-h-[70vh] overflow-y-auto scrollbar-hide">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black uppercase text-slate-500 tracking-[0.2em] ml-2">Razão Social / Nome</label>
                   <input
                     type="text"
                     required
-                    placeholder="Ex: Mercado Central"
-                    className="w-full px-5 py-4 bg-slate-50 border border-slate-100 rounded-2xl focus:ring-2 focus:ring-blue-500/20 outline-none font-black text-black text-sm"
+                    placeholder="Ex: Comercial Atacado Silva"
+                    className="w-full px-6 py-5 bg-white/5 border border-white/5 rounded-3xl outline-none focus:ring-4 focus:ring-red-500/10 focus:bg-white/10 focus:border-red-500/40 transition-all font-bold text-white text-sm"
                     value={formData.name}
                     onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                   />
                 </div>
-                <div className="space-y-1">
-                  <label className="text-[10px] font-black uppercase text-black tracking-widest ml-1">CNPJ ou CPF</label>
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black uppercase text-slate-500 tracking-[0.2em] ml-2">CNPJ / CPF</label>
                   <input
                     type="text"
                     required
-                    placeholder="00.000.000/0001-00"
-                    className="w-full px-5 py-4 bg-slate-50 border border-slate-100 rounded-2xl focus:ring-2 focus:ring-blue-500/20 outline-none font-black text-black text-sm"
+                    placeholder="00.000.000/0000-00"
+                    className="w-full px-6 py-5 bg-white/5 border border-white/5 rounded-3xl outline-none focus:ring-4 focus:ring-red-500/10 focus:bg-white/10 focus:border-red-500/40 transition-all font-bold text-white text-sm"
                     value={formData.cpfCnpj}
                     onChange={(e) => setFormData({ ...formData, cpfCnpj: e.target.value })}
                   />
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="space-y-1">
-                  <label className="text-[10px] font-black uppercase text-black tracking-widest ml-1">E-mail de Acesso (Login)</label>
-                  <div className="relative">
-                    <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                    <input
-                      type="email"
-                      required
-                      placeholder="comercial@cliente.com"
-                      className="w-full pl-12 pr-5 py-4 bg-slate-50 border border-slate-100 rounded-2xl focus:ring-2 focus:ring-blue-500/20 outline-none font-black text-black text-sm"
-                      value={formData.email}
-                      onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                    />
-                  </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black uppercase text-slate-500 tracking-[0.2em] ml-2">E-mail de Login</label>
+                  <input
+                    type="email"
+                    required
+                    placeholder="comercial@parceiro.com"
+                    className="w-full px-6 py-5 bg-white/5 border border-white/5 rounded-3xl outline-none focus:ring-4 focus:ring-red-500/10 focus:bg-white/10 focus:border-red-500/40 transition-all font-bold text-white text-sm"
+                    value={formData.email}
+                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                  />
                 </div>
-                <div className="space-y-1">
-                  <label className="text-[10px] font-black uppercase text-black tracking-widest ml-1">Senha de Acesso</label>
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black uppercase text-slate-500 tracking-[0.2em] ml-2">Senha de Acesso</label>
                   <div className="relative">
-                    <Key className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                    <Key className="absolute left-6 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-600" />
                     <input
                       type="password"
                       required
-                      placeholder="Mínimo 6 caracteres"
-                      className="w-full pl-12 pr-5 py-4 bg-slate-50 border border-slate-100 rounded-2xl focus:ring-2 focus:ring-blue-500/20 outline-none font-black text-black text-sm"
+                      placeholder="Mínimo 6 dígitos"
+                      className="w-full pl-14 pr-6 py-5 bg-white/5 border border-white/5 rounded-3xl outline-none focus:ring-4 focus:ring-red-500/10 focus:bg-white/10 focus:border-red-500/40 transition-all font-bold text-white text-sm"
                       value={formData.password}
                       onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                     />
@@ -252,52 +237,33 @@ const ClientList: React.FC<ClientListProps> = ({ clients }) => {
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="space-y-1">
-                  <label className="text-[10px] font-black uppercase text-black tracking-widest ml-1">Telefone</label>
-                  <div className="relative">
-                    <Phone className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                    <input
-                      type="tel"
-                      required
-                      placeholder="(00) 00000-0000"
-                      className="w-full pl-12 pr-5 py-4 bg-slate-50 border border-slate-100 rounded-2xl focus:ring-2 focus:ring-blue-500/20 outline-none font-black text-black text-sm"
-                      value={formData.phone}
-                      onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                    />
-                  </div>
-                </div>
-                <div className="space-y-1 flex-1">
-                  <label className="text-[10px] font-black uppercase text-black tracking-widest ml-1">Endereço de Entrega</label>
-                  <div className="relative">
-                    <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                    <input
-                      required
-                      placeholder="Rua, Número, Bairro, Cidade"
-                      className="w-full pl-12 pr-5 py-4 bg-slate-50 border border-slate-100 rounded-2xl focus:ring-2 focus:ring-blue-500/20 outline-none font-black text-black text-sm"
-                      value={formData.address}
-                      onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-                    />
-                  </div>
-                </div>
+              <div className="space-y-2">
+                <label className="text-[10px] font-black uppercase text-slate-500 tracking-[0.2em] ml-2">Endereço Completo</label>
+                <input
+                  required
+                  placeholder="Rua, Número, Complemento, CEP..."
+                  className="w-full px-6 py-5 bg-white/5 border border-white/5 rounded-3xl outline-none focus:ring-4 focus:ring-red-500/10 focus:bg-white/10 focus:border-red-500/40 transition-all font-bold text-white text-sm"
+                  value={formData.address}
+                  onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+                />
               </div>
 
-              <div className="pt-6 border-t border-slate-50 flex gap-4">
+              <div className="pt-10 flex gap-6">
                 <button 
                   type="button"
                   onClick={() => setShowModal(false)}
-                  className="flex-1 px-8 py-4 bg-white text-black font-black rounded-2xl border border-slate-100 hover:bg-slate-50 transition-all text-xs uppercase tracking-widest"
+                  className="flex-1 px-8 py-5 bg-white/5 text-slate-400 font-black rounded-3xl border border-white/5 hover:bg-white/10 transition-all text-[10px] uppercase tracking-[0.2em]"
                 >
-                  Cancelar
+                  Cancelar Cadastro
                 </button>
                 <button 
                   type="submit"
                   disabled={loading}
-                  className="flex-[2] bg-blue-600 text-white py-4 rounded-2xl font-black text-xs uppercase tracking-[0.2em] shadow-2xl shadow-blue-200 hover:bg-blue-700 active:scale-95 transition-all flex items-center justify-center gap-3 disabled:opacity-50"
+                  className="flex-[2] bg-red-600 text-white py-5 rounded-3xl font-black text-[10px] uppercase tracking-[0.3em] shadow-2xl shadow-red-900/40 hover:bg-red-500 active:scale-95 transition-all flex items-center justify-center gap-4 disabled:opacity-50"
                 >
-                  {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : (
+                  {loading ? <Loader2 className="w-6 h-6 animate-spin" /> : (
                     <>
-                      <CheckCircle2 className="w-5 h-5 text-white" /> Confirmar e Criar Acesso
+                      EFETIVAR PARCERIA <ArrowRight className="w-5 h-5" />
                     </>
                   )}
                 </button>
