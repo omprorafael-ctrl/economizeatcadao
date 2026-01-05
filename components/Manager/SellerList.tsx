@@ -1,11 +1,12 @@
 
 import React, { useState } from 'react';
 import { Seller, UserRole } from '../../types';
-import { Contact, Plus, Trash2, X, Phone, User, Loader2, MessageCircle, AlertTriangle, Mail, Key, ArrowRight, Edit2, Check } from 'lucide-react';
+import { Contact, Plus, Trash2, X, Phone, User, Loader2, MessageCircle, AlertTriangle, Mail, Key, ArrowRight, Edit2, Check, AlertCircle } from 'lucide-react';
 import { db, firebaseConfig } from '../../firebaseConfig';
 import { collection, addDoc, doc, deleteDoc, updateDoc, setDoc } from 'firebase/firestore';
 import { initializeApp, deleteApp } from 'firebase/app';
 import { getAuth, createUserWithEmailAndPassword, signOut } from 'firebase/auth';
+import { validateCPF } from '../../utils/validators';
 
 interface SellerListProps {
   sellers: Seller[];
@@ -16,27 +17,36 @@ const SellerList: React.FC<SellerListProps> = ({ sellers, setSellers }) => {
   const [showModal, setShowModal] = useState(false);
   const [loading, setLoading] = useState(false);
   const [editingSeller, setEditingSeller] = useState<Seller | null>(null);
-  const [formData, setFormData] = useState({ name: '', email: '', password: '', phone: '' });
+  const [formData, setFormData] = useState({ name: '', email: '', password: '', phone: '', cpf: '' });
+
+  const isCpfValid = formData.cpf ? validateCPF(formData.cpf) : true;
 
   const handleOpenEdit = (seller: Seller) => {
     setEditingSeller(seller);
     setFormData({
       name: seller.name,
       email: seller.email,
-      password: '', // Senha não é recuperável
-      phone: seller.phone
+      password: '',
+      phone: seller.phone,
+      cpf: seller.cpf || ''
     });
     setShowModal(true);
   };
 
   const resetForm = () => {
-    setFormData({ name: '', email: '', password: '', phone: '' });
+    setFormData({ name: '', email: '', password: '', phone: '', cpf: '' });
     setShowModal(false);
     setEditingSeller(null);
   };
 
   const handleSaveSeller = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    if (formData.cpf && !validateCPF(formData.cpf)) {
+      alert("O CPF informado é inválido.");
+      return;
+    }
+
     const cleanPhone = formData.phone.replace(/\D/g, '');
     if (cleanPhone.length < 10) {
       alert("WhatsApp inválido.");
@@ -47,14 +57,13 @@ const SellerList: React.FC<SellerListProps> = ({ sellers, setSellers }) => {
 
     try {
       if (editingSeller) {
-        // Modo Edição (Apenas Nome e Telefone no Firestore)
         await updateDoc(doc(db, 'users', editingSeller.id), {
           name: formData.name.trim(),
-          phone: cleanPhone
+          phone: cleanPhone,
+          cpf: formData.cpf.trim()
         });
         resetForm();
       } else {
-        // Modo Cadastro Novo
         if (formData.password.length < 6) {
           alert("Senha muito curta.");
           setLoading(false);
@@ -72,7 +81,8 @@ const SellerList: React.FC<SellerListProps> = ({ sellers, setSellers }) => {
           name: formData.name.trim(), 
           email: formData.email.trim(),
           role: UserRole.SELLER,
-          phone: cleanPhone, 
+          phone: cleanPhone,
+          cpf: formData.cpf.trim(),
           active: true, 
           createdAt: new Date().toISOString() 
         };
@@ -86,12 +96,6 @@ const SellerList: React.FC<SellerListProps> = ({ sellers, setSellers }) => {
     } catch (error: any) {
       console.error(error);
       alert(`Erro ao salvar acesso da vendedora.`);
-      if (!editingSeller) {
-        try { 
-          // @ts-ignore
-          await deleteApp(getApp("SellerCreationApp")); 
-        } catch(e) {}
-      }
     } finally {
       setLoading(false);
     }
@@ -147,7 +151,8 @@ const SellerList: React.FC<SellerListProps> = ({ sellers, setSellers }) => {
                 </div>
               </div>
               
-              <h4 className="font-bold text-slate-900 text-base uppercase truncate leading-tight mb-2">{seller.name}</h4>
+              <h4 className="font-bold text-slate-900 text-base uppercase truncate leading-tight mb-1">{seller.name}</h4>
+              <p className="text-[9px] font-black text-slate-300 uppercase tracking-widest mb-3">{seller.cpf || 'CPF não informado'}</p>
               <p className="text-[10px] text-slate-400 font-medium mb-4 italic truncate">{seller.email}</p>
               
               <div className="flex items-center gap-3 text-emerald-600 font-bold bg-emerald-50 p-3 rounded-xl border border-emerald-100 mb-6">
@@ -197,6 +202,24 @@ const SellerList: React.FC<SellerListProps> = ({ sellers, setSellers }) => {
                 <input type="text" required autoFocus disabled={loading} className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:bg-white focus:border-red-300 transition-all font-bold text-slate-700 text-xs" placeholder="Ex: Maria Souza" value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} />
               </div>
 
+              <div className="space-y-1.5">
+                <label className="text-[9px] font-bold text-slate-400 uppercase tracking-widest ml-1">CPF da Vendedora</label>
+                <input 
+                  type="text" 
+                  required 
+                  disabled={loading} 
+                  className={`w-full px-4 py-2.5 bg-slate-50 border rounded-xl outline-none focus:bg-white transition-all font-bold text-slate-700 text-xs ${!isCpfValid && formData.cpf ? 'border-red-500 focus:border-red-500' : 'border-slate-200 focus:border-red-300'}`} 
+                  placeholder="000.000.000-00" 
+                  value={formData.cpf} 
+                  onChange={(e) => setFormData({ ...formData, cpf: e.target.value })} 
+                />
+                {!isCpfValid && formData.cpf && (
+                  <p className="text-[8px] text-red-600 font-black uppercase tracking-widest ml-1 flex items-center gap-1">
+                    <AlertCircle className="w-3 h-3" /> CPF Inválido
+                  </p>
+                )}
+              </div>
+
               {!editingSeller && (
                 <>
                   <div className="space-y-1.5">
@@ -224,18 +247,9 @@ const SellerList: React.FC<SellerListProps> = ({ sellers, setSellers }) => {
                 </div>
               </div>
 
-              {editingSeller && (
-                <div className="bg-blue-50 p-3 rounded-xl border border-blue-100 flex items-start gap-3">
-                  <AlertTriangle className="w-4 h-4 text-blue-500 mt-0.5 shrink-0" />
-                  <p className="text-[9px] text-blue-600 font-bold uppercase leading-relaxed tracking-wider">
-                    E-mail e senha não podem ser alterados pelo portal por questões de segurança.
-                  </p>
-                </div>
-              )}
-
               <div className="pt-6 flex gap-3">
                 <button type="button" disabled={loading} onClick={() => resetForm()} className="flex-1 py-2.5 bg-slate-100 text-slate-500 font-bold rounded-xl text-[10px] uppercase tracking-widest hover:bg-slate-200">Cancelar</button>
-                <button type="submit" disabled={loading} className="flex-1 py-2.5 bg-red-600 text-white font-bold rounded-xl text-[10px] uppercase tracking-widest hover:bg-red-700 shadow-md flex items-center justify-center gap-2">
+                <button type="submit" disabled={loading || !isCpfValid} className="flex-1 py-2.5 bg-red-600 text-white font-bold rounded-xl text-[10px] uppercase tracking-widest hover:bg-red-700 shadow-md flex items-center justify-center gap-2 disabled:opacity-50">
                   {loading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : (
                     <>
                       {editingSeller ? 'Salvar Alterações' : 'Cadastrar Vendedora'}

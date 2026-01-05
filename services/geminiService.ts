@@ -1,14 +1,8 @@
-
 import { GoogleGenAI, Type } from "@google/genai";
 
-// Inicialização segura para evitar quebra do app no import
-const getAI = () => {
-  const key = process.env.API_KEY || process.env.GEMINI_API_KEY;
-  return new GoogleGenAI({ apiKey: key || 'dummy_key' });
-};
-
 export const extractProductsFromPdf = async (base64Pdf: string) => {
-  const ai = getAI();
+  // Always initialize GoogleGenAI with the API key from process.env.API_KEY.
+  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   const response = await ai.models.generateContent({
     model: 'gemini-3-flash-preview',
     contents: {
@@ -50,6 +44,7 @@ export const extractProductsFromPdf = async (base64Pdf: string) => {
   });
 
   try {
+    // response.text is a property, not a method.
     const text = response.text || "[]";
     return JSON.parse(text);
   } catch (e) {
@@ -60,7 +55,8 @@ export const extractProductsFromPdf = async (base64Pdf: string) => {
 
 export const searchProductImage = async (productDescription: string): Promise<string | null> => {
   try {
-    const ai = getAI();
+    // Always initialize GoogleGenAI with the API key from process.env.API_KEY.
+    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
     const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
       contents: `Encontre uma URL direta de imagem de alta qualidade para o seguinte produto do Atacadão: "${productDescription}". 
@@ -71,6 +67,7 @@ export const searchProductImage = async (productDescription: string): Promise<st
       }
     });
 
+    // response.text is a property, not a method.
     const url = response.text?.trim();
     if (url && (url.startsWith('http') || url.startsWith('https'))) {
       return url;

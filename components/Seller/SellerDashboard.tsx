@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Seller, Order, OrderStatus, ClientData, UserRole } from '../../types';
 import { 
   LogOut, 
@@ -16,7 +16,7 @@ import {
   Search,
   Check,
   Ban,
-  Phone,
+  Phone, 
   ArrowUpRight,
   History,
   MessageCircle,
@@ -32,13 +32,19 @@ import {
   Key,
   AlertCircle,
   ShieldAlert,
-  ClipboardCheck
+  ShieldCheck,
+  ClipboardCheck,
+  EyeOff,
+  UserCircle,
+  Filter,
+  ChevronDown
 } from 'lucide-react';
-import { db, firebaseConfig } from '../../firebaseConfig';
-import { doc, updateDoc, setDoc } from 'firebase/firestore';
+import { db, firebaseConfig, auth } from '../../firebaseConfig';
+import { doc, updateDoc, setDoc, collection, addDoc } from 'firebase/firestore';
 import { initializeApp, deleteApp } from 'firebase/app';
-import { getAuth, createUserWithEmailAndPassword, signOut } from 'firebase/auth';
+import { getAuth, createUserWithEmailAndPassword, signOut, updatePassword } from 'firebase/auth';
 import { can, PermissionAction } from '../../utils/permissions';
+import { isValidCpfCnpj } from '../../utils/validators';
 
 interface SellerDashboardProps {
   user: Seller;
@@ -50,10 +56,11 @@ interface SellerDashboardProps {
 const SellerDashboard: React.FC<SellerDashboardProps> = ({ user, orders, clients, onLogout }) => {
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
-  const [activeTab, setActiveTab] = useState<'portfolio' | 'history' | 'clients'>('portfolio');
+  const [activeTab, setActiveTab] = useState<'portfolio' | 'history' | 'clients' | 'profile'>('portfolio');
   const [updatingId, setUpdatingId] = useState<string | null>(null);
+  const [showPasswordModal, setShowPasswordModal] = useState(false);
+  const [statusFilter, setStatusFilter] = useState<string>('all');
   
-  // Estados para Modais de Ação
   const [actionModal, setActionModal] = useState<{
     isOpen: boolean;
     type: 'CANCEL' | 'INVOICE' | null;
@@ -61,7 +68,6 @@ const SellerDashboard: React.FC<SellerDashboardProps> = ({ user, orders, clients
   }>({ isOpen: false, type: null, orderId: null });
   const [cancelReason, setCancelReason] = useState('');
 
-  // States para Cadastro de Cliente
   const [showClientModal, setShowClientModal] = useState(false);
   const [clientLoading, setClientLoading] = useState(false);
   const [clientForm, setClientForm] = useState({
@@ -73,34 +79,42 @@ const SellerDashboard: React.FC<SellerDashboardProps> = ({ user, orders, clients
     address: ''
   });
 
-  // --- Lógica de Pedidos ---
-  const myOrders = orders.filter(o => o.sellerId === user.id);
+  const isDocValid = clientForm.cpfCnpj ? isValidCpfCnpj(clientForm.cpfCnpj) : true;
 
-  const portfolioOrders = myOrders.filter(o => 
-    o.status !== OrderStatus.INVOICED && 
-    o.status !== OrderStatus.CANCELLED && 
-    o.status !== OrderStatus.FINISHED
-  );
+  const myOrders = useMemo(() => orders.filter(o => o.sellerId === user.id), [orders, user.id]);
 
-  const historyOrders = myOrders.filter(o => 
-    o.status === OrderStatus.INVOICED || 
-    o.status === OrderStatus.CANCELLED || 
-    o.status === OrderStatus.FINISHED
-  );
+  const displayedOrders = useMemo(() => {
+    let base = [];
+    if (activeTab === 'portfolio') {
+      base = myOrders.filter(o => 
+        o.status !== OrderStatus.INVOICED && 
+        o.status !== OrderStatus.CANCELLED && 
+        o.status !== OrderStatus.FINISHED
+      );
+    } else {
+      base = myOrders.filter(o => 
+        o.status === OrderStatus.INVOICED || 
+        o.status === OrderStatus.CANCELLED || 
+        o.status === OrderStatus.FINISHED
+      );
+    }
 
-  const displayedOrders = (activeTab === 'portfolio' ? portfolioOrders : historyOrders).filter(o => 
-    o.clientName.toLowerCase().includes(searchTerm.toLowerCase()) || 
-    o.id.includes(searchTerm.toUpperCase())
-  );
+    return base.filter(o => {
+      const matchesSearch = o.clientName.toLowerCase().includes(searchTerm.toLowerCase()) || 
+                           o.id.includes(searchTerm.toUpperCase());
+      const matchesStatus = statusFilter === 'all' || o.status === statusFilter;
+      return matchesSearch && matchesStatus;
+    });
+  }, [myOrders, activeTab, searchTerm, statusFilter]);
 
-  // Filtra clientes para exibição
-  const displayedClients = clients.filter(c => 
-    c.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    c.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (c.cpfCnpj && c.cpfCnpj.includes(searchTerm))
-  );
+  const displayedClients = useMemo(() => {
+    return clients.filter(c => 
+      c.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      c.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (c.cpfCnpj && c.cpfCnpj.includes(searchTerm))
+    );
+  }, [clients, searchTerm]);
 
-  // Abre o modal de confirmação (Faturar ou Cancelar)
   const handleRequestAction = (orderId: string, type: 'CANCEL' | 'INVOICE') => {
     const permission = type === 'CANCEL' ? 'order_status_cancelled' : 'order_status_invoiced';
     if (!can(user.role, permission)) {
@@ -112,7 +126,6 @@ const SellerDashboard: React.FC<SellerDashboardProps> = ({ user, orders, clients
     setActionModal({ isOpen: true, type, orderId });
   };
 
-  // Executa a ação confirmada pelo Modal
   const confirmAction = async () => {
     if (!actionModal.orderId || !actionModal.type) return;
 
@@ -122,18 +135,11 @@ const SellerDashboard: React.FC<SellerDashboardProps> = ({ user, orders, clients
     }
 
     const newStatus = actionModal.type === 'INVOICE' ? OrderStatus.INVOICED : OrderStatus.CANCELLED;
-    
-    // Chama a função centralizada de atualização
     await executeUpdate(actionModal.orderId, newStatus, cancelReason);
-    
-    // Fecha o modal após a tentativa
     setActionModal({ isOpen: false, type: null, orderId: null });
   };
 
-  // Função CENTRALIZADA de atualização
   const executeUpdate = async (id: string, newStatus: OrderStatus, reason: string | null = null) => {
-    console.log(`Iniciando atualização do pedido ${id} para status ${newStatus}`);
-    
     let requiredPermission: PermissionAction | null = null;
     
     switch (newStatus) {
@@ -151,26 +157,38 @@ const SellerDashboard: React.FC<SellerDashboardProps> = ({ user, orders, clients
     setUpdatingId(id);
     try {
       const orderRef = doc(db, 'orders', id);
+      const now = new Date().toISOString();
       const updateData: any = { status: newStatus };
       
-      if (reason) {
-        updateData.cancelReason = reason;
+      if (reason) updateData.cancelReason = reason;
+
+      // Controle de SLA/Tempo
+      if (newStatus === OrderStatus.IN_PROGRESS) {
+        updateData.receivedAt = now;
+        // Notificar Gerente
+        await addDoc(collection(db, 'notifications'), {
+          title: 'Pedido Recebido',
+          message: `${user.name} iniciou o atendimento do pedido #${id}`,
+          type: 'order_received',
+          read: false,
+          createdAt: now,
+          orderId: id
+        });
+      } else if (newStatus === OrderStatus.INVOICED) {
+        updateData.invoicedAt = now;
       }
 
       await updateDoc(orderRef, updateData);
-      console.log(`Pedido ${id} atualizado com sucesso no Firestore.`);
       
-      // Feedback visual se estiver em detalhes
       if (selectedOrder?.id === id) {
         if (newStatus === OrderStatus.INVOICED || newStatus === OrderStatus.CANCELLED) {
           setSelectedOrder(null);
         } else {
-          setSelectedOrder(prev => prev ? { ...prev, status: newStatus } : null);
+          setSelectedOrder(prev => prev ? { ...prev, ...updateData } : null);
         }
       }
     } catch (error: any) {
       console.error("Erro fatal ao atualizar status:", error);
-      // O erro 'No document to update' agora está mitigado pela mudança na ordem do spread no App.tsx
       alert(`Erro crítico ao salvar no servidor: ${error.message}`);
     } finally {
       setUpdatingId(null);
@@ -184,6 +202,12 @@ const SellerDashboard: React.FC<SellerDashboardProps> = ({ user, orders, clients
   const handleSaveClient = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!can(user.role, 'create_client')) return;
+    
+    if (!isValidCpfCnpj(clientForm.cpfCnpj)) {
+      alert("O CPF/CNPJ informado é inválido.");
+      return;
+    }
+
     if (clientForm.password.length < 6) {
       alert("A senha deve ter no mínimo 6 caracteres.");
       return;
@@ -236,7 +260,7 @@ const SellerDashboard: React.FC<SellerDashboardProps> = ({ user, orders, clients
     <div className="flex flex-col h-screen bg-slate-50 overflow-hidden">
       <header className="h-20 bg-white border-b border-slate-200 flex items-center justify-between px-6 sm:px-10 shrink-0 sticky top-0 z-30 shadow-sm">
         <div className="flex items-center gap-4">
-          <div className="w-12 h-12 bg-red-600 rounded-2xl flex items-center justify-center shadow-lg shadow-red-100">
+          <div className="w-12 h-12 bg-red-600 rounded-2xl flex items-center justify-center shadow-lg shadow-red-100 cursor-pointer" onClick={() => setActiveTab('portfolio')}>
             <ShoppingBag className="w-6 h-6 text-white" />
           </div>
           <div className="hidden xs:block">
@@ -249,16 +273,22 @@ const SellerDashboard: React.FC<SellerDashboardProps> = ({ user, orders, clients
         </div>
         
         <div className="flex items-center gap-4">
-          <div className="hidden md:flex relative w-64">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-300 w-4 h-4" />
+          <div className="hidden md:flex relative w-64 group">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-300 w-4 h-4 group-focus-within:text-red-500 transition-colors" />
             <input 
               type="text"
               placeholder={activeTab === 'clients' ? "Buscar cliente..." : "Buscar pedido..."}
-              className="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold outline-none focus:bg-white focus:border-red-300 transition-all"
+              className="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold outline-none focus:bg-white focus:border-red-300 transition-all shadow-inner"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
             />
           </div>
+          <button 
+            onClick={() => setActiveTab('profile')}
+            className={`w-10 h-10 rounded-xl border flex items-center justify-center transition-all ${activeTab === 'profile' ? 'bg-red-600 border-red-600 text-white shadow-lg' : 'bg-white border-slate-100 text-slate-400'}`}
+          >
+            <User className="w-5 h-5" />
+          </button>
           <button onClick={onLogout} className="p-3 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-2xl transition-all">
             <LogOut className="w-5 h-5" />
           </button>
@@ -266,15 +296,15 @@ const SellerDashboard: React.FC<SellerDashboardProps> = ({ user, orders, clients
       </header>
 
       <div className="bg-white border-b border-slate-200 px-6 sm:px-10 flex gap-8 shrink-0 overflow-x-auto scrollbar-hide">
-        <button onClick={() => setActiveTab('portfolio')} className={`py-4 text-[10px] font-black uppercase tracking-widest transition-all relative whitespace-nowrap ${activeTab === 'portfolio' ? 'text-red-600' : 'text-slate-400 hover:text-slate-600'}`}>
-          <div className="flex items-center gap-2"><Briefcase className="w-3.5 h-3.5" /> Em Carteira ({portfolioOrders.length})</div>
+        <button onClick={() => { setActiveTab('portfolio'); setStatusFilter('all'); }} className={`py-4 text-[10px] font-black uppercase tracking-widest transition-all relative whitespace-nowrap ${activeTab === 'portfolio' ? 'text-red-600' : 'text-slate-400 hover:text-slate-600'}`}>
+          <div className="flex items-center gap-2"><Briefcase className="w-3.5 h-3.5" /> Em Carteira ({myOrders.filter(o => ![OrderStatus.INVOICED, OrderStatus.CANCELLED, OrderStatus.FINISHED].includes(o.status)).length})</div>
           {activeTab === 'portfolio' && <div className="absolute bottom-0 left-0 right-0 h-1 bg-red-600 rounded-t-full" />}
         </button>
-        <button onClick={() => setActiveTab('history')} className={`py-4 text-[10px] font-black uppercase tracking-widest transition-all relative whitespace-nowrap ${activeTab === 'history' ? 'text-red-600' : 'text-slate-400 hover:text-slate-600'}`}>
-          <div className="flex items-center gap-2"><History className="w-3.5 h-3.5" /> Histórico ({historyOrders.length})</div>
+        <button onClick={() => { setActiveTab('history'); setStatusFilter('all'); }} className={`py-4 text-[10px] font-black uppercase tracking-widest transition-all relative whitespace-nowrap ${activeTab === 'history' ? 'text-red-600' : 'text-slate-400 hover:text-slate-600'}`}>
+          <div className="flex items-center gap-2"><History className="w-3.5 h-3.5" /> Histórico ({myOrders.filter(o => [OrderStatus.INVOICED, OrderStatus.CANCELLED, OrderStatus.FINISHED].includes(o.status)).length})</div>
           {activeTab === 'history' && <div className="absolute bottom-0 left-0 right-0 h-1 bg-red-600 rounded-t-full" />}
         </button>
-        <button onClick={() => setActiveTab('clients')} className={`py-4 text-[10px] font-black uppercase tracking-widest transition-all relative whitespace-nowrap ${activeTab === 'clients' ? 'text-red-600' : 'text-slate-400 hover:text-slate-600'}`}>
+        <button onClick={() => { setActiveTab('clients'); setStatusFilter('all'); }} className={`py-4 text-[10px] font-black uppercase tracking-widest transition-all relative whitespace-nowrap ${activeTab === 'clients' ? 'text-red-600' : 'text-slate-400 hover:text-slate-600'}`}>
           <div className="flex items-center gap-2"><Users className="w-3.5 h-3.5" /> Meus Clientes ({clients.length})</div>
           {activeTab === 'clients' && <div className="absolute bottom-0 left-0 right-0 h-1 bg-red-600 rounded-t-full" />}
         </button>
@@ -282,103 +312,185 @@ const SellerDashboard: React.FC<SellerDashboardProps> = ({ user, orders, clients
 
       <main className="flex-1 overflow-auto p-4 sm:p-8 scrollbar-hide pb-20">
         <div className="max-w-4xl mx-auto space-y-6">
-          <div className="flex items-center justify-between px-2">
-            <h2 className="text-[11px] font-black text-slate-400 uppercase tracking-[0.3em]">
-              {activeTab === 'portfolio' ? 'Pedidos Ativos' : activeTab === 'history' ? 'Finalizados' : 'Base de Clientes'}
-            </h2>
-            {activeTab === 'clients' && can(user.role, 'create_client') && (
-              <button onClick={() => setShowClientModal(true)} className="flex items-center gap-2 bg-red-600 text-white px-4 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-red-700 transition-all shadow-lg active:scale-95">
-                <UserPlus className="w-3.5 h-3.5" /> Novo Cliente
-              </button>
-            )}
-          </div>
+          
+          {activeTab === 'profile' ? (
+            <div className="max-w-2xl mx-auto p-8 space-y-8 animate-in fade-in duration-500">
+               <div className="text-center pb-8 border-b border-slate-100">
+                  <div className="w-20 h-20 bg-red-50 text-red-600 border border-red-100 rounded-3xl flex items-center justify-center mx-auto mb-4 shadow-sm">
+                    <UserCircle className="w-10 h-10" />
+                  </div>
+                  <h2 className="text-xl font-black text-slate-900 uppercase tracking-tighter">Meus Dados Operacionais</h2>
+                  <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest mt-2">Perfil da Vendedora</p>
+               </div>
 
-          <div className="space-y-4">
-            {activeTab === 'clients' ? (
-              displayedClients.length > 0 ? (
-                displayedClients.map(client => (
-                  <div key={client.id} className="bg-white rounded-[32px] border border-slate-100 p-6 flex flex-col md:flex-row md:items-center justify-between gap-6 hover:shadow-xl transition-all">
-                    <div className="flex items-center gap-5">
-                      <div className="w-14 h-14 bg-slate-50 rounded-2xl flex items-center justify-center border border-slate-100 text-slate-500 font-bold text-xl uppercase">
-                        {client.name.charAt(0)}
-                      </div>
-                      <div className="min-w-0">
-                        <h3 className="text-sm font-bold text-slate-800 uppercase truncate">{client.name}</h3>
-                        <p className="text-[10px] text-slate-400 font-bold mt-1 uppercase tracking-widest flex items-center gap-2"><Building2 className="w-3 h-3" /> {client.cpfCnpj || 'Doc Pendente'}</p>
-                        <div className="flex items-center gap-3 mt-2">
-                          {client.phone && (
-                            <a href={`https://wa.me/${client.phone.replace(/\D/g, '')}`} target="_blank" className="text-[10px] text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-md font-bold hover:bg-emerald-100 transition-colors flex items-center gap-1" onClick={e => e.stopPropagation()}>
-                              <MessageCircle className="w-3 h-3" /> WhatsApp
-                            </a>
-                          )}
-                        </div>
-                      </div>
+               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="bg-white p-5 rounded-3xl border border-slate-100">
+                    <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1.5">Nome Completo</p>
+                    <p className="text-xs font-bold text-slate-800 uppercase">{user.name}</p>
+                  </div>
+                  <div className="bg-white p-5 rounded-3xl border border-slate-100">
+                    <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1.5">CPF</p>
+                    <p className="text-xs font-bold text-slate-800">{user.cpf || 'Não informado'}</p>
+                  </div>
+                  <div className="bg-white p-5 rounded-3xl border border-slate-100">
+                    <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1.5">WhatsApp Comercial</p>
+                    <p className="text-xs font-bold text-slate-800">{user.phone}</p>
+                  </div>
+                  <div className="bg-white p-5 rounded-3xl border border-slate-100">
+                    <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1.5">E-mail Corporativo</p>
+                    <p className="text-xs font-bold text-slate-800 italic">{user.email}</p>
+                  </div>
+               </div>
+
+               <div className="bg-slate-900 p-6 rounded-[32px] text-white flex items-center justify-between shadow-xl">
+                  <div className="flex items-center gap-4">
+                    <div className="w-12 h-12 bg-white/10 rounded-2xl flex items-center justify-center border border-white/20">
+                      <Key className="w-6 h-6" />
                     </div>
-                    <div className="flex flex-col gap-2 text-right">
-                       <p className="text-[10px] text-slate-400 font-medium italic">{client.email}</p>
-                       <div className="flex items-center gap-1 justify-end text-[10px] text-slate-500 font-bold"><MapPin className="w-3 h-3" /><span className="truncate max-w-[200px]">{client.address || 'Sem endereço'}</span></div>
+                    <div>
+                      <h4 className="text-xs font-black uppercase tracking-widest">Acesso Seguro</h4>
+                      <p className="text-[9px] text-slate-400 font-bold uppercase tracking-widest mt-1">Troque sua senha periodicamente</p>
                     </div>
                   </div>
-                ))
-              ) : <NoItems icon={Users} text="Nenhum cliente encontrado" />
-            ) : (
-              displayedOrders.length > 0 ? (
-                displayedOrders.map(order => {
-                  const status = statusMap[order.status] || statusMap[OrderStatus.GENERATED];
-                  const client = getClientInfo(order.clientId);
-                  const isUpdating = updatingId === order.id;
-
-                  return (
-                    <div key={order.id} className="bg-white rounded-[32px] border border-slate-100 p-6 flex flex-col lg:flex-row lg:items-center justify-between gap-6 hover:shadow-xl transition-all group">
-                      <div className="flex items-center gap-5">
-                        <div className={`w-14 h-14 rounded-2xl flex items-center justify-center border-2 transition-colors shrink-0 ${status.color}`}>
-                          {isUpdating ? <Loader2 className="w-7 h-7 animate-spin" /> : React.createElement(status.icon, { className: "w-7 h-7" })}
-                        </div>
-                        <div className="min-w-0">
-                          <div className="flex items-center gap-2 flex-wrap">
-                             <span className="text-[10px] font-black text-red-600 tracking-widest uppercase italic">#{order.id}</span>
-                             <span className={`px-2.5 py-0.5 rounded-full text-[8px] font-black uppercase border ${status.color}`}>{status.label}</span>
-                          </div>
-                          <h3 className="text-sm font-bold text-slate-800 uppercase truncate mt-1">{order.clientName}</h3>
-                          {client && (
-                            <a href={`tel:${client.phone}`} className="text-[10px] text-slate-400 font-black mt-1.5 flex items-center gap-1.5 hover:text-emerald-600 transition-colors uppercase">
-                              <Phone className="w-3 h-3" /> {client.phone}
-                            </a>
-                          )}
-                        </div>
-                      </div>
-
-                      <div className="flex flex-col sm:flex-row items-center gap-4">
-                         <div className="text-center sm:text-right">
-                            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mb-0.5">Total Pedido</p>
-                            <p className="font-black text-slate-900 text-lg tracking-tighter">R$ {order.total.toFixed(2).replace('.', ',')}</p>
-                         </div>
-                         <div className="h-10 w-px bg-slate-100 mx-2 hidden lg:block" />
-                         <div className="flex items-center gap-2 w-full sm:w-auto">
-                           <button onClick={() => setSelectedOrder(order)} className="flex-1 sm:flex-none p-3.5 bg-slate-50 text-slate-400 hover:text-slate-900 hover:bg-slate-100 rounded-2xl border border-slate-100 transition-all flex items-center justify-center gap-2">
-                             <Eye className="w-5 h-5" /><span className="text-[9px] font-black uppercase lg:hidden">Ver Detalhes</span>
-                           </button>
-                           {activeTab === 'portfolio' && (
-                             <div className="flex items-center gap-1.5 bg-slate-50/50 p-1 rounded-2xl border border-slate-100 flex-1 sm:flex-none">
-                               {can(user.role, 'order_status_in_progress') && (
-                                 <ActionBtn disabled={isUpdating} onClick={() => executeUpdate(order.id, OrderStatus.IN_PROGRESS)} label="Receber" icon={ClipboardCheck} active={order.status === OrderStatus.IN_PROGRESS} color="text-amber-600 bg-amber-50 border-amber-100" />
-                               )}
-                               {can(user.role, 'order_status_invoiced') && (
-                                 <ActionBtn disabled={isUpdating} onClick={() => handleRequestAction(order.id, 'INVOICE')} label="Faturar" icon={Check} active={order.status === OrderStatus.INVOICED} color="text-emerald-600 bg-emerald-50 border-emerald-100" />
-                               )}
-                               {can(user.role, 'order_status_cancelled') && (
-                                 <ActionBtn disabled={isUpdating} onClick={() => handleRequestAction(order.id, 'CANCEL')} label="Cancelar" icon={Ban} active={order.status === OrderStatus.CANCELLED} color="text-red-600 bg-red-50 border-red-100" />
-                               )}
-                             </div>
-                           )}
-                         </div>
-                      </div>
+                  <button 
+                    onClick={() => setShowPasswordModal(true)}
+                    className="px-6 py-2.5 bg-red-600 text-white text-[9px] font-black uppercase tracking-widest rounded-xl hover:bg-red-700 transition-all shadow-lg shadow-red-600/20"
+                  >
+                    Alterar Senha
+                  </button>
+               </div>
+            </div>
+          ) : (
+            <>
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 px-2">
+                <h2 className="text-[11px] font-black text-slate-400 uppercase tracking-[0.3em]">
+                  {activeTab === 'portfolio' ? 'Pedidos Ativos' : activeTab === 'history' ? 'Finalizados' : 'Base de Clientes'}
+                </h2>
+                
+                <div className="flex items-center gap-3">
+                  {(activeTab === 'portfolio' || activeTab === 'history') && (
+                    <div className="relative min-w-[150px]">
+                      <Filter className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-300 w-3 h-3" />
+                      <select 
+                        value={statusFilter}
+                        onChange={(e) => setStatusFilter(e.target.value)}
+                        className="w-full pl-8 pr-8 py-2 bg-white border border-slate-200 rounded-xl text-[9px] font-black uppercase tracking-widest text-slate-600 appearance-none outline-none shadow-sm"
+                      >
+                        <option value="all">TODOS STATUS</option>
+                        {activeTab === 'portfolio' ? (
+                          <>
+                            <option value={OrderStatus.GENERATED}>NOVOS</option>
+                            <option value={OrderStatus.IN_PROGRESS}>RECEBIDOS</option>
+                            <option value={OrderStatus.SENT}>ENVIADOS</option>
+                          </>
+                        ) : (
+                          <>
+                            <option value={OrderStatus.INVOICED}>FATURADOS</option>
+                            <option value={OrderStatus.CANCELLED}>CANCELADOS</option>
+                            <option value={OrderStatus.FINISHED}>CONCLUÍDOS</option>
+                          </>
+                        )}
+                      </select>
+                      <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-200 w-3 h-3 pointer-events-none" />
                     </div>
-                  );
-                })
-              ) : <NoItems icon={ShoppingBag} text={`Nenhum pedido em ${activeTab === 'portfolio' ? 'carteira' : 'histórico'}`} />
-            )}
-          </div>
+                  )}
+
+                  {activeTab === 'clients' && can(user.role, 'create_client') && (
+                    <button onClick={() => setShowClientModal(true)} className="flex items-center gap-2 bg-red-600 text-white px-4 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-red-700 transition-all shadow-lg active:scale-95">
+                      <UserPlus className="w-3.5 h-3.5" /> Novo Cliente
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              <div className="space-y-4">
+                {activeTab === 'clients' ? (
+                  displayedClients.length > 0 ? (
+                    displayedClients.map(client => (
+                      <div key={client.id} className="bg-white rounded-[32px] border border-slate-100 p-6 flex flex-col md:flex-row md:items-center justify-between gap-6 hover:shadow-xl transition-all">
+                        <div className="flex items-center gap-5">
+                          <div className="w-14 h-14 bg-slate-50 rounded-2xl flex items-center justify-center border border-slate-100 text-slate-500 font-bold text-xl uppercase">
+                            {client.name.charAt(0)}
+                          </div>
+                          <div className="min-w-0">
+                            <h3 className="text-sm font-bold text-slate-800 uppercase truncate">{client.name}</h3>
+                            <p className="text-[10px] text-slate-400 font-bold mt-1 uppercase tracking-widest flex items-center gap-2"><Building2 className="w-3 h-3" /> {client.cpfCnpj || 'Doc Pendente'}</p>
+                            <div className="flex items-center gap-3 mt-2">
+                              {client.phone && (
+                                <a href={`https://wa.me/${client.phone.replace(/\D/g, '')}`} target="_blank" className="text-[10px] text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-md font-bold hover:bg-emerald-100 transition-colors flex items-center gap-1" onClick={e => e.stopPropagation()}>
+                                  <MessageCircle className="w-3 h-3" /> WhatsApp
+                                </a>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                        <div className="flex flex-col gap-2 text-right">
+                          <p className="text-[10px] text-slate-400 font-medium italic">{client.email}</p>
+                          <div className="flex items-center gap-1 justify-end text-[10px] text-slate-500 font-bold"><MapPin className="w-3 h-3" /><span className="truncate max-w-[200px]">{client.address || 'Sem endereço'}</span></div>
+                        </div>
+                      </div>
+                    ))
+                  ) : <NoItems icon={Users} text="Nenhum cliente encontrado" />
+                ) : (
+                  displayedOrders.length > 0 ? (
+                    displayedOrders.map(order => {
+                      const status = statusMap[order.status] || statusMap[OrderStatus.GENERATED];
+                      const client = getClientInfo(order.clientId);
+                      const isUpdating = updatingId === order.id;
+
+                      return (
+                        <div key={order.id} className="bg-white rounded-[32px] border border-slate-100 p-6 flex flex-col lg:flex-row lg:items-center justify-between gap-6 hover:shadow-xl transition-all group">
+                          <div className="flex items-center gap-5">
+                            <div className={`w-14 h-14 rounded-2xl flex items-center justify-center border-2 transition-colors shrink-0 ${status.color}`}>
+                              {isUpdating ? <Loader2 className="w-7 h-7 animate-spin" /> : React.createElement(status.icon, { className: "w-7 h-7" })}
+                            </div>
+                            <div className="min-w-0">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <span className="text-[10px] font-black text-red-600 tracking-widest uppercase italic">#{order.id}</span>
+                                <span className={`px-2.5 py-0.5 rounded-full text-[8px] font-black uppercase border ${status.color}`}>{status.label}</span>
+                              </div>
+                              <h3 className="text-sm font-bold text-slate-800 uppercase truncate mt-1">{order.clientName}</h3>
+                              {client && (
+                                <a href={`tel:${client.phone}`} className="text-[10px] text-slate-400 font-black mt-1.5 flex items-center gap-1.5 hover:text-emerald-600 transition-colors uppercase">
+                                  <Phone className="w-3 h-3" /> {client.phone}
+                                </a>
+                              )}
+                            </div>
+                          </div>
+
+                          <div className="flex flex-col sm:flex-row items-center gap-4">
+                            <div className="text-center sm:text-right">
+                                <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mb-0.5">Total Pedido</p>
+                                <p className="font-black text-slate-900 text-lg tracking-tighter">R$ {order.total.toFixed(2).replace('.', ',')}</p>
+                            </div>
+                            <div className="h-10 w-px bg-slate-100 mx-2 hidden lg:block" />
+                            <div className="flex items-center gap-2 w-full sm:w-auto">
+                              <button onClick={() => setSelectedOrder(order)} className="flex-1 sm:flex-none p-3.5 bg-slate-50 text-slate-400 hover:text-slate-900 hover:bg-slate-100 rounded-2xl border border-slate-100 transition-all flex items-center justify-center gap-2 shadow-sm">
+                                <Eye className="w-5 h-5" /><span className="text-[9px] font-black uppercase lg:hidden">Ver Detalhes</span>
+                              </button>
+                              {activeTab === 'portfolio' && (
+                                <div className="flex items-center gap-1.5 bg-slate-50/50 p-1 rounded-2xl border border-slate-100 flex-1 sm:flex-none">
+                                  {can(user.role, 'order_status_in_progress') && (
+                                    <ActionBtn disabled={isUpdating} onClick={() => executeUpdate(order.id, OrderStatus.IN_PROGRESS)} label="Receber" icon={ClipboardCheck} active={order.status === OrderStatus.IN_PROGRESS} color="text-amber-600 bg-amber-50 border-amber-100" />
+                                  )}
+                                  {can(user.role, 'order_status_invoiced') && (
+                                    <ActionBtn disabled={isUpdating} onClick={() => handleRequestAction(order.id, 'INVOICE')} label="Faturar" icon={Check} active={order.status === OrderStatus.INVOICED} color="text-emerald-600 bg-emerald-50 border-emerald-100" />
+                                  )}
+                                  {can(user.role, 'order_status_cancelled') && (
+                                    <ActionBtn disabled={isUpdating} onClick={() => handleRequestAction(order.id, 'CANCEL')} label="Cancelar" icon={Ban} active={order.status === OrderStatus.CANCELLED} color="text-red-600 bg-red-50 border-red-100" />
+                                  )}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })
+                  ) : <NoItems icon={Search} text={searchTerm || statusFilter !== 'all' ? "Nenhum resultado para os filtros" : `Nenhum pedido em ${activeTab === 'portfolio' ? 'carteira' : 'histórico'}`} />
+                )}
+              </div>
+            </>
+          )}
         </div>
       </main>
 
@@ -463,80 +575,131 @@ const SellerDashboard: React.FC<SellerDashboardProps> = ({ user, orders, clients
         </div>
       )}
 
-      {actionModal.isOpen && (
-        <div className="fixed inset-0 z-[150] flex items-center justify-center p-4 backdrop-blur-md bg-slate-900/40">
-           <div className="absolute inset-0" onClick={() => setActionModal({ isOpen: false, type: null, orderId: null })} />
-           <div className="relative bg-white w-full max-w-sm rounded-[32px] shadow-2xl p-6 border border-slate-200 animate-in zoom-in-95">
-              <div className={`w-14 h-14 rounded-2xl flex items-center justify-center mb-4 mx-auto ${actionModal.type === 'CANCEL' ? 'bg-red-50 text-red-600 border border-red-100' : 'bg-emerald-50 text-emerald-600 border border-emerald-100'}`}>
-                {actionModal.type === 'CANCEL' ? <AlertCircle className="w-7 h-7" /> : <CheckCircle2 className="w-7 h-7" />}
-              </div>
-              <h3 className="text-center font-black text-slate-900 uppercase tracking-widest text-sm mb-1">{actionModal.type === 'CANCEL' ? 'Cancelar Pedido' : 'Faturar Pedido'}</h3>
-              {actionModal.type === 'CANCEL' ? (
-                <div className="mt-4 space-y-4">
-                  <p className="text-center text-[10px] font-bold text-slate-400 uppercase tracking-widest leading-relaxed">Informe o motivo do cancelamento.</p>
-                  <textarea value={cancelReason} onChange={(e) => setCancelReason(e.target.value)} placeholder="Ex: Cliente desistiu..." className="w-full h-24 p-4 bg-slate-50 border border-slate-200 rounded-2xl text-xs font-bold text-slate-700 outline-none focus:bg-white resize-none" autoFocus />
-                </div>
-              ) : <p className="text-center text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-2 leading-relaxed px-4">Confirma o faturamento deste pedido?</p>}
-              <div className="grid grid-cols-2 gap-3 mt-8">
-                 <button onClick={() => setActionModal({ isOpen: false, type: null, orderId: null })} className="py-3 bg-slate-100 text-slate-500 font-black rounded-xl text-[10px] uppercase tracking-widest hover:bg-slate-200">Voltar</button>
-                 <button onClick={confirmAction} disabled={actionModal.type === 'CANCEL' && !cancelReason.trim()} className={`py-3 text-white font-black rounded-xl text-[10px] uppercase tracking-widest shadow-lg flex items-center justify-center gap-2 disabled:opacity-50 ${actionModal.type === 'CANCEL' ? 'bg-red-600 hover:bg-red-700' : 'bg-emerald-600 hover:bg-emerald-700'}`}>
-                   {updatingId ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Confirmar'}
-                 </button>
-              </div>
-           </div>
-        </div>
-      )}
-
-      {showClientModal && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 backdrop-blur-md bg-slate-900/20">
-          <div className="absolute inset-0" onClick={() => !clientLoading && setShowClientModal(false)} />
-          <div className="relative bg-white w-full max-w-lg rounded-[40px] shadow-2xl border border-slate-100 overflow-hidden animate-in zoom-in-95">
-            <div className="p-8 bg-slate-50 border-b flex items-center justify-between">
-              <div><h3 className="text-sm font-black text-slate-800 uppercase tracking-widest">Novo Credenciamento</h3><p className="text-[9px] text-slate-400 font-bold uppercase tracking-widest mt-1">Adicionar parceiro comercial</p></div>
-              <button onClick={() => !clientLoading && setShowClientModal(false)} className="p-2 bg-white text-slate-400 hover:text-red-600 rounded-xl border border-slate-100"><X className="w-5 h-5" /></button>
-            </div>
-            <form onSubmit={handleSaveClient} className="p-8 space-y-6 overflow-y-auto max-h-[70vh] scrollbar-hide">
-              <div className="space-y-4">
-                <div className="flex items-center gap-2 border-b border-slate-100 pb-2"><Building2 className="w-4 h-4 text-red-500" /><span className="text-[10px] font-black uppercase tracking-widest text-slate-800">Dados Empresariais</span></div>
-                <div className="space-y-3">
-                  <div className="space-y-1.5"><label className="text-[9px] font-black uppercase text-slate-400 tracking-widest ml-1">Razão Social</label><input type="text" required disabled={clientLoading} className="w-full px-5 py-3 bg-slate-50 border border-slate-200 rounded-2xl outline-none font-bold text-slate-700 text-xs" value={clientForm.name} onChange={(e) => setClientForm({ ...clientForm, name: e.target.value })} /></div>
-                  <div className="space-y-1.5"><label className="text-[9px] font-black uppercase text-slate-400 tracking-widest ml-1">CNPJ / CPF</label><input type="text" required disabled={clientLoading} className="w-full px-5 py-3 bg-slate-50 border border-slate-200 rounded-2xl outline-none font-bold text-slate-700 text-xs" value={clientForm.cpfCnpj} onChange={(e) => setClientForm({ ...clientForm, cpfCnpj: e.target.value })} /></div>
-                </div>
-              </div>
-              <div className="space-y-4">
-                <div className="flex items-center gap-2 border-b border-slate-100 pb-2"><Lock className="w-4 h-4 text-red-500" /><span className="text-[10px] font-black uppercase tracking-widest text-slate-800">Acesso ao Sistema</span></div>
-                <div className="space-y-3">
-                  <div className="space-y-1.5"><label className="text-[9px] font-black uppercase text-slate-400 tracking-widest ml-1">E-mail de Login</label><div className="relative"><Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-300" /><input type="email" required disabled={clientLoading} className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl outline-none font-bold text-slate-700 text-xs" value={clientForm.email} onChange={(e) => setClientForm({ ...clientForm, email: e.target.value })} /></div></div>
-                  <div className="space-y-1.5"><label className="text-[9px] font-black uppercase text-slate-400 tracking-widest ml-1">Senha Inicial</label><div className="relative"><Key className="absolute left-4 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-300" /><input type="password" required disabled={clientLoading} placeholder="Mínimo 6 caracteres" className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl outline-none font-bold text-slate-700 text-xs" value={clientForm.password} onChange={(e) => setClientForm({ ...clientForm, password: e.target.value })} /></div></div>
-                </div>
-              </div>
-              <div className="pt-4 flex gap-4">
-                <button type="button" onClick={() => setShowClientModal(false)} className="flex-1 py-3.5 bg-slate-100 text-slate-500 font-black rounded-2xl text-[10px] uppercase tracking-widest hover:bg-slate-200">Cancelar</button>
-                <button type="submit" disabled={clientLoading} className="flex-[2] bg-red-600 text-white py-3.5 rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-lg flex items-center justify-center gap-3">{clientLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : <>Cadastrar Cliente <Check className="w-4 h-4" /></>}</button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+      {showPasswordModal && <ChangePasswordModal onClose={() => setShowPasswordModal(false)} />}
     </div>
   );
 };
 
-const NoItems = ({ icon: Icon, text }: any) => (
-  <div className="py-40 flex flex-col items-center justify-center text-slate-300 bg-white rounded-[40px] border border-dashed border-slate-200">
-    <Icon className="w-12 h-12 opacity-10 mb-4" /><p className="font-black uppercase tracking-[0.3em] text-[10px]">{text}</p>
+// --- Helper Components ---
+
+const ActionBtn = ({ 
+  disabled, 
+  onClick, 
+  label, 
+  icon: Icon, 
+  active, 
+  color 
+}: { 
+  disabled: boolean, 
+  onClick: () => void, 
+  label: string, 
+  icon: any, 
+  active: boolean, 
+  color: string 
+}) => (
+  <button
+    disabled={disabled}
+    onClick={(e) => { e.stopPropagation(); onClick(); }}
+    className={`p-2 rounded-xl border transition-all flex flex-col items-center justify-center gap-1 flex-1 ${
+      active ? color : 'bg-white text-slate-400 border-slate-100 hover:border-slate-200'
+    } disabled:opacity-50`}
+  >
+    <Icon className="w-4 h-4" />
+    <span className="text-[7px] font-black uppercase tracking-widest">{label}</span>
+  </button>
+);
+
+const NoItems = ({ icon: Icon, text }: { icon: any, text: string }) => (
+  <div className="py-20 text-center flex flex-col items-center justify-center opacity-20">
+    <Icon className="w-16 h-16 mb-4" />
+    <p className="text-sm font-black uppercase tracking-widest text-slate-900">{text}</p>
   </div>
 );
 
-const ActionBtn = ({ onClick, label, icon: Icon, active, color, disabled }: any) => (
-  <button 
-    disabled={disabled}
-    onClick={(e) => { e.stopPropagation(); onClick(); }}
-    className={`flex items-center gap-2 px-3.5 py-2.5 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all border ${active ? color : 'text-slate-400 bg-white border-slate-100 hover:bg-white hover:border-slate-300'} disabled:opacity-30`}
-    title={label}
-  >
-    <Icon className="w-3.5 h-3.5" /><span className="hidden xl:inline">{label}</span>
-  </button>
-);
+const ChangePasswordModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [showPass, setShowPass] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const handleUpdate = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (newPassword.length < 6) {
+      setError("A senha deve ter pelo menos 6 caracteres.");
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      setError("As senhas não coincidem.");
+      return;
+    }
+
+    setLoading(true);
+    setError(null);
+    try {
+      if (auth.currentUser) {
+        await updatePassword(auth.currentUser, newPassword);
+        alert("Senha atualizada com sucesso!");
+        onClose();
+      }
+    } catch (err: any) {
+      console.error(err);
+      if (err.code === 'auth/requires-recent-login') {
+        setError("Por segurança, saia e entre novamente para trocar a senha.");
+      } else {
+        setError("Erro ao atualizar senha.");
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 backdrop-blur-md bg-slate-900/40">
+      <div className="absolute inset-0" onClick={() => !loading && onClose()} />
+      <div className="relative bg-white w-full max-w-sm rounded-3xl shadow-2xl border border-slate-200 animate-in zoom-in-95">
+        <div className="p-6 bg-slate-50 border-b border-slate-100 flex items-center justify-between">
+          <h3 className="text-xs font-black text-slate-800 uppercase tracking-widest">Nova Senha</h3>
+          <button onClick={onClose} className="text-slate-400 hover:text-red-600"><X className="w-5 h-5" /></button>
+        </div>
+        <form onSubmit={handleUpdate} className="p-6 space-y-4">
+          {error && <p className="text-[10px] text-red-600 font-bold uppercase tracking-widest bg-red-50 p-2 border border-red-100">{error}</p>}
+          <div className="space-y-1.5">
+            <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1">Senha</label>
+            <div className="relative">
+              <Key className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-300" />
+              <input 
+                type={showPass ? "text" : "password"} 
+                required 
+                className="w-full pl-10 pr-10 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none font-bold text-xs" 
+                value={newPassword} 
+                onChange={(e) => setNewPassword(e.target.value)} 
+              />
+              <button type="button" onClick={() => setShowPass(!showPass)} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-300">
+                {showPass ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+              </button>
+            </div>
+          </div>
+          <div className="space-y-1.5">
+            <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1">Confirmar</label>
+            <div className="relative">
+              <ShieldCheck className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-300" />
+              <input 
+                type={showPass ? "text" : "password"} 
+                required 
+                className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none font-bold text-xs" 
+                value={confirmPassword} 
+                onChange={(e) => setConfirmPassword(e.target.value)} 
+              />
+            </div>
+          </div>
+          <button type="submit" disabled={loading} className="w-full py-3.5 bg-red-600 text-white font-black text-[10px] uppercase tracking-widest shadow-lg flex items-center justify-center gap-2 rounded-xl">
+            {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : "Salvar"}
+          </button>
+        </form>
+      </div>
+    </div>
+  );
+};
 
 export default SellerDashboard;

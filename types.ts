@@ -22,6 +22,7 @@ export interface ClientData extends User {
 
 export interface Seller extends User {
   phone: string;
+  cpf?: string;
 }
 
 export interface Product {
@@ -61,10 +62,22 @@ export interface Order {
   total: number;
   status: OrderStatus;
   createdAt: string;
+  receivedAt?: string; // Data em que o vendedor recebeu
+  invoicedAt?: string; // Data em que foi faturado
   items: OrderItem[];
   sellerId?: string;
   sellerName?: string;
   cancelReason?: string;
+}
+
+export interface AppNotification {
+  id: string;
+  title: string;
+  message: string;
+  type: 'order_received' | 'order_cancelled' | 'info';
+  read: boolean;
+  createdAt: string;
+  orderId?: string;
 }
 
 export interface CartItem extends Product {

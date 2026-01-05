@@ -1,13 +1,15 @@
 
-import React, { useState } from 'react';
-import { User, Product, ClientData, Order, Seller } from '../../types';
-import { LayoutDashboard, Package, Users, ShoppingCart, LogOut, ShieldCheck, Settings, Contact, Menu } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { User, Product, ClientData, Order, Seller, AppNotification } from '../../types';
+import { LayoutDashboard, Package, Users, ShoppingCart, LogOut, ShieldCheck, Settings, Contact, Menu, Bell, X, Trash2, CheckCircle } from 'lucide-react';
 import ProductList from './ProductList';
 import ClientList from './ClientList';
 import OrderList from './OrderList';
 import StatsOverview from './StatsOverview';
 import AdminManager from './AdminManager';
 import SellerList from './SellerList';
+import { collection, onSnapshot, query, orderBy, limit, doc, updateDoc, deleteDoc } from 'firebase/firestore';
+import { db } from '../../firebaseConfig';
 
 interface ManagerDashboardProps {
   user: User;
@@ -28,6 +30,17 @@ const ManagerDashboard: React.FC<ManagerDashboardProps> = ({
   user, products, setProducts, clients, setClients, orders, setOrders, managers, setManagers, sellers, setSellers, onLogout 
 }) => {
   const [activeTab, setActiveTab] = useState<'dashboard' | 'products' | 'clients' | 'orders' | 'admins' | 'sellers'>('dashboard');
+  const [notifications, setNotifications] = useState<AppNotification[]>([]);
+  const [showNotifications, setShowNotifications] = useState(false);
+
+  useEffect(() => {
+    const q = query(collection(db, 'notifications'), orderBy('createdAt', 'desc'), limit(20));
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const notifs = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as AppNotification));
+      setNotifications(notifs);
+    });
+    return () => unsubscribe();
+  }, []);
 
   const menuItems = [
     { id: 'dashboard', label: 'Início', icon: LayoutDashboard },
@@ -37,6 +50,18 @@ const ManagerDashboard: React.FC<ManagerDashboardProps> = ({
     { id: 'orders', label: 'Pedidos', icon: ShoppingCart },
     { id: 'admins', label: 'Config', icon: ShieldCheck },
   ];
+
+  const unreadCount = notifications.filter(n => !n.read).length;
+
+  const markAsRead = async (id: string) => {
+    await updateDoc(doc(db, 'notifications', id), { read: true });
+  };
+
+  const clearNotifications = async () => {
+    notifications.forEach(async (n) => {
+      await deleteDoc(doc(db, 'notifications', n.id));
+    });
+  };
 
   return (
     <div className="flex h-screen bg-slate-50 overflow-hidden text-slate-800 flex-col lg:flex-row">
@@ -102,6 +127,54 @@ const ManagerDashboard: React.FC<ManagerDashboardProps> = ({
             </h1>
           </div>
           <div className="flex items-center gap-3">
+             <div className="relative">
+                <button 
+                  onClick={() => setShowNotifications(!showNotifications)}
+                  className={`p-2 rounded-xl transition-all relative ${showNotifications ? 'bg-red-50 text-red-600' : 'text-slate-400 hover:bg-slate-50 hover:text-slate-600'}`}
+                >
+                  <Bell className="w-5 h-5" />
+                  {unreadCount > 0 && (
+                    <span className="absolute top-1 right-1 w-4 h-4 bg-red-600 text-white text-[8px] font-black rounded-full flex items-center justify-center border-2 border-white animate-bounce">
+                      {unreadCount}
+                    </span>
+                  )}
+                </button>
+                
+                {showNotifications && (
+                  <div className="absolute top-12 right-0 w-80 bg-white border border-slate-200 shadow-2xl rounded-3xl z-50 overflow-hidden animate-in zoom-in-95 duration-200">
+                    <div className="p-4 border-b border-slate-100 flex items-center justify-between bg-slate-50">
+                      <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-800">Centro de Alertas</h4>
+                      <button onClick={clearNotifications} className="text-[9px] font-black text-red-600 uppercase hover:underline">Limpar</button>
+                    </div>
+                    <div className="max-h-96 overflow-y-auto scrollbar-hide">
+                      {notifications.length > 0 ? (
+                        notifications.map(n => (
+                          <div 
+                            key={n.id} 
+                            onClick={() => { markAsRead(n.id); setActiveTab('orders'); setShowNotifications(false); }}
+                            className={`p-4 border-b border-slate-50 cursor-pointer transition-colors flex gap-4 ${n.read ? 'opacity-50' : 'bg-red-50/20'}`}
+                          >
+                            <div className="w-8 h-8 bg-red-100 text-red-600 rounded-lg flex items-center justify-center shrink-0">
+                              <ShoppingCart className="w-4 h-4" />
+                            </div>
+                            <div>
+                              <p className="text-[10px] font-black text-slate-800 uppercase leading-tight">{n.title}</p>
+                              <p className="text-[10px] text-slate-500 font-medium mt-1 leading-relaxed">{n.message}</p>
+                              <p className="text-[8px] text-slate-400 font-bold uppercase mt-2">{new Date(n.createdAt).toLocaleTimeString()}</p>
+                            </div>
+                          </div>
+                        ))
+                      ) : (
+                        <div className="p-10 text-center">
+                          <CheckCircle className="w-8 h-8 text-slate-200 mx-auto mb-3" />
+                          <p className="text-[10px] font-black text-slate-400 uppercase">Tudo em ordem por aqui!</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+             </div>
+
              <div className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 text-emerald-600 rounded-full border border-emerald-100">
                <div className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse" />
                <span className="text-[9px] font-bold uppercase tracking-widest">Sistema Ativo</span>
@@ -117,7 +190,7 @@ const ManagerDashboard: React.FC<ManagerDashboardProps> = ({
 
         <div className="flex-1 overflow-auto p-4 sm:p-8 scrollbar-hide pb-32 lg:pb-8">
           <div className="max-w-6xl mx-auto">
-            {activeTab === 'dashboard' && <StatsOverview products={products} clients={clients} orders={orders} />}
+            {activeTab === 'dashboard' && <StatsOverview products={products} clients={clients} orders={orders} sellers={sellers} />}
             {activeTab === 'products' && (
               <ProductList products={products} setProducts={setProducts} />
             )}

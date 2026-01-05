@@ -19,12 +19,14 @@ import {
   Trash2,
   Check,
   AlertTriangle,
-  Lock
+  Lock,
+  AlertCircle
 } from 'lucide-react';
 import { db, firebaseConfig } from '../../firebaseConfig';
 import { doc, setDoc, updateDoc, deleteDoc } from 'firebase/firestore';
 import { initializeApp, deleteApp } from 'firebase/app';
 import { getAuth, createUserWithEmailAndPassword, signOut } from 'firebase/auth';
+import { isValidCpfCnpj } from '../../utils/validators';
 
 interface ClientListProps {
   clients: ClientData[];
@@ -45,12 +47,14 @@ const ClientList: React.FC<ClientListProps> = ({ clients }) => {
     address: '' 
   });
 
+  const isDocValid = formData.cpfCnpj ? isValidCpfCnpj(formData.cpfCnpj) : true;
+
   const handleOpenEdit = (client: any) => {
     setEditingClient(client);
     setFormData({
       name: client.name,
       email: client.email,
-      password: client.password || '', // Carrega a senha se estiver no doc
+      password: client.password || '',
       cpfCnpj: client.cpfCnpj || '',
       phone: client.phone || '',
       address: client.address || ''
@@ -66,24 +70,26 @@ const ClientList: React.FC<ClientListProps> = ({ clients }) => {
 
   const handleSaveClient = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    if (!isValidCpfCnpj(formData.cpfCnpj)) {
+      alert("O CPF/CNPJ informado é inválido. Por favor, verifique os dígitos.");
+      return;
+    }
+
     setLoading(true);
 
     try {
       if (editingClient) {
-        // MODO EDIÇÃO TOTAL: Gerente pode alterar tudo, inclusive e-mail e senha no Firestore
-        // Nota: A alteração no Firestore serve para consulta do gerente. 
-        // Em um sistema real, a troca de e-mail/senha no Auth exigiria Firebase Admin SDK ou Cloud Functions.
         await updateDoc(doc(db, 'users', editingClient.id), {
           name: formData.name.trim(),
           email: formData.email.trim(),
-          password: formData.password, // Armazenamos no doc para consulta do gerente
+          password: formData.password,
           cpfCnpj: formData.cpfCnpj.trim(),
           phone: formData.phone.trim(),
           address: formData.address.trim()
         });
         resetForm();
       } else {
-        // MODO NOVO CADASTRO
         if (formData.password.length < 6) {
           alert("A senha deve ter no mínimo 6 caracteres.");
           setLoading(false);
@@ -100,7 +106,7 @@ const ClientList: React.FC<ClientListProps> = ({ clients }) => {
           id: uid, 
           name: formData.name.trim(), 
           email: formData.email.trim(), 
-          password: formData.password, // Armazenamos para que o gerente possa ver depois
+          password: formData.password,
           role: UserRole.CLIENT, 
           active: true, 
           createdAt: new Date().toISOString(), 
@@ -117,21 +123,18 @@ const ClientList: React.FC<ClientListProps> = ({ clients }) => {
     } catch (error: any) {
       console.error(error);
       alert("Falha na operação: " + (error.message || "Erro desconhecido"));
-      if (!editingClient) {
-        try { await deleteApp(getAuth().app); } catch(e) {}
-      }
     } finally {
       setLoading(false);
     }
   };
 
   const handleDeleteClient = async (id: string) => {
-    if (window.confirm("⚠️ EXCLUSÃO PERMANENTE: Você tem certeza que deseja remover este cliente? Todos os acessos serão revogados imediatamente.")) {
+    if (window.confirm("⚠️ EXCLUSÃO PERMANENTE: Você tem certeza que deseja remover este cliente?")) {
       try {
         await deleteDoc(doc(db, 'users', id));
       } catch (error) {
         console.error(error);
-        alert("Erro ao remover registro do banco de dados.");
+        alert("Erro ao remover registro.");
       }
     }
   };
@@ -260,7 +263,19 @@ const ClientList: React.FC<ClientListProps> = ({ clients }) => {
                   </div>
                   <div className="space-y-2">
                     <label className="text-[9px] font-black uppercase text-slate-400 tracking-widest ml-1">CNPJ / CPF do Cliente</label>
-                    <input type="text" required disabled={loading} className="w-full px-5 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:bg-white focus:border-red-300 transition-all font-bold text-slate-700 text-xs" value={formData.cpfCnpj} onChange={(e) => setFormData({ ...formData, cpfCnpj: e.target.value })} />
+                    <input 
+                      type="text" 
+                      required 
+                      disabled={loading} 
+                      className={`w-full px-5 py-3.5 bg-slate-50 border rounded-2xl outline-none focus:bg-white transition-all font-bold text-slate-700 text-xs ${!isDocValid && formData.cpfCnpj ? 'border-red-500 focus:border-red-500' : 'border-slate-200 focus:border-red-300'}`} 
+                      value={formData.cpfCnpj} 
+                      onChange={(e) => setFormData({ ...formData, cpfCnpj: e.target.value })} 
+                    />
+                    {!isDocValid && formData.cpfCnpj && (
+                      <p className="text-[9px] text-red-600 font-black uppercase tracking-widest ml-1 flex items-center gap-1">
+                        <AlertCircle className="w-3 h-3" /> Documento Inválido
+                      </p>
+                    )}
                   </div>
                 </div>
               </div>
@@ -301,7 +316,7 @@ const ClientList: React.FC<ClientListProps> = ({ clients }) => {
 
               <div className="pt-8 flex gap-4">
                 <button type="button" onClick={() => resetForm()} className="flex-1 py-4 bg-slate-100 text-slate-500 font-black rounded-2xl text-[10px] uppercase tracking-widest hover:bg-slate-200 transition-all">Descartar</button>
-                <button type="submit" disabled={loading} className="flex-[2] bg-red-600 text-white py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-2xl shadow-red-100 hover:bg-red-700 active:scale-95 transition-all flex items-center justify-center gap-3">
+                <button type="submit" disabled={loading || !isDocValid} className="flex-[2] bg-red-600 text-white py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-2xl shadow-red-100 hover:bg-red-700 active:scale-95 transition-all flex items-center justify-center gap-3 disabled:opacity-50">
                   {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : (
                     <>
                       {editingClient ? 'Salvar Alterações de Acesso' : 'Finalizar Cadastro'} 
