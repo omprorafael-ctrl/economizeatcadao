@@ -267,20 +267,18 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({
         )}
       </main>
 
-      {/* Mobile Navigation Bar */}
-      {!isImmersive && (
-        <div className="md:hidden fixed bottom-6 left-1/2 -translate-x-1/2 w-[90%] max-w-[400px] bg-white border border-slate-100 rounded-none flex items-center justify-around py-3 px-2 shadow-2xl shadow-slate-300/40 z-50 backdrop-blur-md">
-          <NavButton active={activeTab === 'catalog'} onClick={() => setActiveTab('catalog')} icon={List} label="Catálogo" />
-          <NavButton active={activeTab === 'cart'} onClick={() => setActiveTab('cart')} icon={ShoppingCart} label="Cesta" count={cartCount} />
-          <NavButton active={activeTab === 'history'} onClick={() => setActiveTab('history')} icon={History} label="Pedidos" />
-          <NavButton active={activeTab === 'profile'} onClick={() => setActiveTab('profile')} icon={User} label="Perfil" />
-        </div>
-      )}
+      {/* Mobile Navigation Bar - Removido !isImmersive para evitar erro TS2367 e permitir navegação */}
+      <div className="md:hidden fixed bottom-6 left-1/2 -translate-x-1/2 w-[90%] max-w-[400px] bg-white border border-slate-100 rounded-none flex items-center justify-around py-3 px-2 shadow-2xl shadow-slate-300/40 z-50 backdrop-blur-md">
+        <NavButton active={activeTab === 'catalog'} onClick={() => setActiveTab('catalog')} icon={List} label="Catálogo" />
+        <NavButton active={activeTab === 'cart'} onClick={() => setActiveTab('cart')} icon={ShoppingCart} label="Cesta" count={cartCount} />
+        <NavButton active={activeTab === 'history'} onClick={() => setActiveTab('history')} icon={History} label="Pedidos" />
+        <NavButton active={activeTab === 'profile'} onClick={() => setActiveTab('profile')} icon={User} label="Perfil" />
+      </div>
     </div>
   );
 };
 
-/* --- Sub-componentes com tipagem explícita para evitar erros TS2367 --- */
+/* --- Sub-componentes com tipagem explícita --- */
 
 interface NavButtonProps {
   active: boolean;
