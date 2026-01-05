@@ -22,7 +22,7 @@ const Cart: React.FC<CartProps> = ({ cart, user, sellers, updateQuantity, remove
   const [lastOrder, setLastOrder] = useState<Order | null>(null);
   const [pdfError, setPdfError] = useState<string | null>(null);
   
-  const total = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+  const total = cart.reduce((sum, item) => sum + (((item.onSale && item.salePrice) ? item.salePrice : item.price) * item.quantity), 0);
 
   const getPDFDocument = (order: Order) => {
     const doc = new jsPDF();
@@ -96,26 +96,33 @@ const Cart: React.FC<CartProps> = ({ cart, user, sellers, updateQuantity, remove
     return doc;
   };
 
-  const handleSharePDF = async (order: Order) => {
+  const handleShareAndDownloadPDF = async (order: Order) => {
     try {
+      setPdfError(null);
       const doc = getPDFDocument(order);
-      const pdfBlob = doc.output('blob');
-      const file = new File([pdfBlob], `Pedido_${order.id}_Atacadao.pdf`, { type: 'application/pdf' });
+      const fileName = `Pedido_${order.id}_Atacadao.pdf`;
+      
+      // 1. Inicia o Download Automático (Garante a cópia local)
+      doc.save(fileName);
 
+      // 2. Prepara o arquivo para Compartilhamento
+      const pdfBlob = doc.output('blob');
+      const file = new File([pdfBlob], fileName, { type: 'application/pdf' });
+
+      // 3. Executa o Compartilhamento Nativo se disponível
       if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
         await navigator.share({
           files: [file],
           title: `Pedido Atacadão #${order.id}`,
-          text: `Segue o PDF do pedido #${order.id} gerado no portal.`
+          text: `Olá! Segue o PDF oficial do meu pedido #${order.id} gerado no Portal Atacadão.\n\nTotal: R$ ${order.total.toFixed(2).replace('.', ',')}`
         });
       } else {
-        // Fallback: Apenas baixa o arquivo se o compartilhamento não estiver disponível
-        doc.save(`Pedido_${order.id}_Atacadao.pdf`);
-        alert("Seu navegador não suporta compartilhamento direto de arquivos. O PDF foi baixado automaticamente.");
+        // Fallback apenas para dispositivos sem Web Share
+        alert("Download concluído! Como seu navegador não suporta compartilhamento direto de arquivos, anexe o PDF baixado manualmente ao WhatsApp.");
       }
     } catch (err) {
-      console.error("Erro ao compartilhar PDF:", err);
-      setPdfError("Não foi possível compartilhar o arquivo. Tente baixar o PDF.");
+      console.error("Erro ao processar PDF:", err);
+      setPdfError("Erro ao processar arquivo. Verifique se o download foi concluído.");
     }
   };
 
@@ -153,8 +160,8 @@ const Cart: React.FC<CartProps> = ({ cart, user, sellers, updateQuantity, remove
       
       setLastOrder(newOrder);
       
-      // Tenta compartilhar imediatamente ou baixa
-      await handleSharePDF(newOrder);
+      // Tenta compartilhar e baixar imediatamente
+      await handleShareAndDownloadPDF(newOrder);
       
     } catch (err: any) {
       console.error("Erro ao salvar pedido:", err);
@@ -164,7 +171,7 @@ const Cart: React.FC<CartProps> = ({ cart, user, sellers, updateQuantity, remove
     }
   };
 
-  const shareToWhatsApp = () => {
+  const openWhatsAppDirect = () => {
     if (!lastOrder || !selectedSeller) return;
     
     const message = encodeURIComponent(
@@ -173,7 +180,7 @@ const Cart: React.FC<CartProps> = ({ cart, user, sellers, updateQuantity, remove
       `Sou o cliente *${user.name}*.\n\n` +
       `Acabei de gerar o pedido *#${lastOrder.id}* no portal.\n` +
       `*Total:* R$ ${lastOrder.total.toFixed(2).replace('.', ',')}\n\n` +
-      `_O PDF do pedido já foi gerado._`
+      `_Já baixei o PDF e vou enviá-lo em anexo agora._`
     );
     
     window.open(`https://wa.me/${selectedSeller.phone}?text=${message}`, '_blank');
@@ -250,27 +257,30 @@ const Cart: React.FC<CartProps> = ({ cart, user, sellers, updateQuantity, remove
 
         <div className="space-y-4">
            <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.3em] px-4">Produtos Selecionados</p>
-           {cart.map(item => (
-            <div key={item.id} className="bg-white/5 p-6 rounded-[35px] border border-white/5 flex gap-5 items-center transition-all hover:border-red-500/30">
-              <div className="w-14 h-14 bg-red-600/10 rounded-2xl flex items-center justify-center text-red-600 flex-shrink-0 border border-red-500/20">
-                <Tag className="w-6 h-6" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <h3 className="font-bold text-sm text-white uppercase truncate pr-4 tracking-wide">{item.description}</h3>
-                <div className="flex items-center justify-between mt-3">
-                  <p className="text-base font-black text-white italic">R$ {((item.onSale && item.salePrice) ? item.salePrice : item.price).toFixed(2).replace('.', ',')}</p>
-                  <div className="flex items-center bg-black/40 rounded-2xl p-1 border border-white/5">
-                    <button onClick={() => updateQuantity(item.id, -1)} className="w-8 h-8 flex items-center justify-center text-slate-500 hover:text-red-500"><Minus className="w-4 h-4" /></button>
-                    <span className="w-10 text-center font-black text-sm text-white">{item.quantity}</span>
-                    <button onClick={() => updateQuantity(item.id, 1)} className="w-8 h-8 flex items-center justify-center text-slate-500 hover:text-red-500"><Plus className="w-4 h-4" /></button>
+           {cart.map(item => {
+            const itemPrice = (item.onSale && item.salePrice) ? item.salePrice : item.price;
+            return (
+              <div key={item.id} className="bg-white/5 p-6 rounded-[35px] border border-white/5 flex gap-5 items-center transition-all hover:border-red-500/30">
+                <div className="w-14 h-14 bg-red-600/10 rounded-2xl flex items-center justify-center text-red-600 flex-shrink-0 border border-red-500/20">
+                  <Tag className="w-6 h-6" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <h3 className="font-bold text-sm text-white uppercase truncate pr-4 tracking-wide">{item.description}</h3>
+                  <div className="flex items-center justify-between mt-3">
+                    <p className="text-base font-black text-white italic">R$ {itemPrice.toFixed(2).replace('.', ',')}</p>
+                    <div className="flex items-center bg-black/40 rounded-2xl p-1 border border-white/5">
+                      <button onClick={() => updateQuantity(item.id, -1)} className="w-8 h-8 flex items-center justify-center text-slate-500 hover:text-red-500"><Minus className="w-4 h-4" /></button>
+                      <span className="w-10 text-center font-black text-sm text-white">{item.quantity}</span>
+                      <button onClick={() => updateQuantity(item.id, 1)} className="w-8 h-8 flex items-center justify-center text-slate-500 hover:text-red-500"><Plus className="w-4 h-4" /></button>
+                    </div>
                   </div>
                 </div>
+                {!lastOrder && (
+                  <button onClick={() => removeFromCart(item.id)} className="text-slate-600 hover:text-red-500 p-2"><Trash2 className="w-6 h-6" /></button>
+                )}
               </div>
-              {!lastOrder && (
-                <button onClick={() => removeFromCart(item.id)} className="text-slate-600 hover:text-red-500 p-2"><Trash2 className="w-6 h-6" /></button>
-              )}
-            </div>
-          ))}
+            );
+           })}
         </div>
       </div>
 
@@ -296,7 +306,7 @@ const Cart: React.FC<CartProps> = ({ cart, user, sellers, updateQuantity, remove
               {isGenerating ? <Loader2 className="w-6 h-6 animate-spin" /> : (
                 <>
                   <Download className="w-5 h-5" />
-                  Finalizar e Gerar PDF
+                  Gerar e Baixar PDF
                 </>
               )}
             </button>
@@ -307,31 +317,31 @@ const Cart: React.FC<CartProps> = ({ cart, user, sellers, updateQuantity, remove
               <div className="inline-flex items-center justify-center w-12 h-12 bg-emerald-500/20 text-emerald-500 rounded-full mb-3">
                 <CheckCircle2 className="w-7 h-7" />
               </div>
-              <h3 className="text-xl font-black text-white uppercase tracking-tighter italic leading-none">Pedido #{lastOrder.id} Sucesso!</h3>
-              <p className="text-[9px] text-slate-500 font-bold uppercase tracking-[0.2em] mt-2">Compartilhe o PDF oficial abaixo:</p>
+              <h3 className="text-xl font-black text-white uppercase tracking-tighter italic leading-none">Pedido #{lastOrder.id} Gerado!</h3>
+              <p className="text-[9px] text-slate-500 font-bold uppercase tracking-[0.2em] mt-2">O download iniciou. Envie o anexo para a vendedora:</p>
             </div>
             
             <button 
-              onClick={() => handleSharePDF(lastOrder)}
-              className="w-full flex items-center justify-center gap-4 py-5 bg-blue-600 hover:bg-blue-500 text-white rounded-[25px] font-black text-xs uppercase tracking-[0.3em] shadow-[0_15px_30px_rgba(37,99,235,0.3)] transition-all active:scale-95"
+              onClick={() => handleShareAndDownloadPDF(lastOrder)}
+              className="w-full flex items-center justify-center gap-4 py-6 bg-blue-600 hover:bg-blue-500 text-white rounded-[30px] font-black text-xs uppercase tracking-[0.3em] shadow-[0_15px_30px_rgba(37,99,235,0.3)] transition-all active:scale-95"
             >
               <Share2 className="w-5 h-5" />
               Compartilhar PDF (Anexo)
             </button>
 
             <button 
-              onClick={shareToWhatsApp}
-              className="w-full flex items-center justify-center gap-4 py-5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-[25px] font-black text-xs uppercase tracking-[0.3em] shadow-[0_15px_30px_rgba(16,185,129,0.3)] transition-all active:scale-95"
+              onClick={openWhatsAppDirect}
+              className="w-full flex items-center justify-center gap-4 py-5 bg-emerald-600/10 border border-emerald-500/30 text-emerald-500 rounded-[25px] font-black text-xs uppercase tracking-[0.3em] transition-all active:scale-95"
             >
               <MessageSquare className="w-5 h-5" />
-              Avisar via WhatsApp
+              Notificar via WhatsApp
             </button>
             
             <button 
-              onClick={() => getPDFDocument(lastOrder).save(`Pedido_${lastOrder.id}_Atacadao.pdf`)}
-              className="w-full py-3 border border-white/10 bg-white/5 text-slate-400 rounded-2xl text-[8px] font-black uppercase tracking-widest hover:bg-white/10 transition-all"
+              onClick={() => onOrderCreated(lastOrder)}
+              className="w-full py-3 text-slate-500 text-[8px] font-black uppercase tracking-[0.4em] hover:text-white transition-colors"
             >
-              Baixar Cópia Local
+              Concluir e Voltar ao Início
             </button>
           </div>
         )}
