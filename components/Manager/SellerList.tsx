@@ -8,14 +8,14 @@ import {
   X, 
   Phone, 
   User, 
-  CheckCircle2, 
   Loader2,
   Power,
   MessageCircle,
-  AlertTriangle
+  AlertTriangle,
+  ExternalLink
 } from 'lucide-react';
 import { db } from '../../firebaseConfig';
-import { collection, addDoc, doc, deleteDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
+import { collection, addDoc, doc, deleteDoc, updateDoc } from 'firebase/firestore';
 
 interface SellerListProps {
   sellers: Seller[];
@@ -30,7 +30,6 @@ const SellerList: React.FC<SellerListProps> = ({ sellers, setSellers }) => {
   const handleCreateSeller = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    // Validação básica de telefone
     const cleanPhone = formData.phone.replace(/\D/g, '');
     if (cleanPhone.length < 10) {
       alert("Por favor, insira um WhatsApp válido com DDD.");
@@ -40,8 +39,6 @@ const SellerList: React.FC<SellerListProps> = ({ sellers, setSellers }) => {
     setLoading(true);
 
     try {
-      console.log("Iniciando gravação do vendedor no Firestore...");
-      
       const sellerData = {
         name: formData.name.trim(),
         phone: cleanPhone,
@@ -49,31 +46,40 @@ const SellerList: React.FC<SellerListProps> = ({ sellers, setSellers }) => {
         createdAt: new Date().toISOString()
       };
 
-      // Gravação direta no Firestore
-      const docRef = await addDoc(collection(db, 'sellers'), sellerData);
+      await addDoc(collection(db, 'sellers'), sellerData);
       
-      console.log("Vendedor gravado com sucesso! ID:", docRef.id);
-      
-      // Feedback e limpeza
       setFormData({ name: '', phone: '' });
       setShowModal(false);
-      alert("Vendedora cadastrada com sucesso!");
       
     } catch (error: any) {
-      console.error("Erro fatal ao salvar vendedor:", error);
-      alert(`Erro ao salvar: ${error.message || "Verifique sua conexão ou permissões do banco."}`);
+      console.error("ERRO NO FIRESTORE:", error);
+      
+      if (error.message.includes("permissions") || error.code === 'permission-denied') {
+        const rulesCode = `
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /{document=**} {
+      allow read, write: if true; 
+    }
+  }
+}
+        `;
+        alert(`ERRO DE PERMISSÃO!\n\nPara corrigir, vá no Console do Firebase > Firestore > Rules e cole EXATAMENTE isto:\n\n${rulesCode.trim()}`);
+      } else {
+        alert(`Falha ao salvar vendedora: ${error.message}`);
+      }
     } finally {
       setLoading(false);
     }
   };
 
   const deleteSeller = async (id: string) => {
-    if (window.confirm("Deseja realmente remover esta vendedora? Isso impedirá que novos clientes enviem pedidos para ela.")) {
+    if (window.confirm("Deseja realmente remover esta vendedora?")) {
       try {
         await deleteDoc(doc(db, 'sellers', id));
       } catch (error) {
         console.error("Erro ao deletar:", error);
-        alert("Não foi possível excluir o registro.");
       }
     }
   };
@@ -109,7 +115,7 @@ const SellerList: React.FC<SellerListProps> = ({ sellers, setSellers }) => {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {sellers.length > 0 ? (
+        {sellers && sellers.length > 0 ? (
           sellers.map(seller => (
             <div key={seller.id} className="bg-white/5 border border-white/5 rounded-[38px] p-8 hover:shadow-[0_20px_50px_rgba(220,38,38,0.1)] hover:border-red-500/30 transition-all group relative overflow-hidden flex flex-col">
               <div className="flex items-start justify-between mb-8">
@@ -147,9 +153,14 @@ const SellerList: React.FC<SellerListProps> = ({ sellers, setSellers }) => {
             </div>
           ))
         ) : (
-          <div className="col-span-full py-24 text-center border-2 border-dashed border-white/5 rounded-[45px] flex flex-col items-center justify-center">
-            <AlertTriangle className="w-12 h-12 text-slate-700 mb-4" />
+          <div className="col-span-full py-24 text-center border-2 border-dashed border-white/5 rounded-[45px] flex flex-col items-center justify-center bg-white/[0.02]">
+            <AlertTriangle className="w-12 h-12 text-amber-500/40 mb-4" />
             <p className="font-black text-slate-500 uppercase tracking-widest text-xs">Nenhuma vendedora ativa no sistema</p>
+            <div className="mt-6 p-4 bg-amber-500/5 border border-amber-500/10 rounded-2xl max-w-xs">
+              <p className="text-[9px] font-bold text-amber-600 uppercase tracking-tight leading-relaxed">
+                DICA: Se você já cadastrou e não aparece aqui, verifique as regras de segurança (Database Rules) no seu Console Firebase.
+              </p>
+            </div>
           </div>
         )}
       </div>
@@ -181,7 +192,7 @@ const SellerList: React.FC<SellerListProps> = ({ sellers, setSellers }) => {
                   required
                   autoFocus
                   className="w-full px-6 py-5 bg-white/5 border border-white/5 rounded-3xl outline-none focus:ring-4 focus:ring-red-500/10 focus:bg-white/10 focus:border-red-500/40 transition-all font-bold text-white text-sm"
-                  placeholder="Nome da vendedora"
+                  placeholder="Ex: Maria Vendedora"
                   value={formData.name}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                 />
@@ -201,12 +212,6 @@ const SellerList: React.FC<SellerListProps> = ({ sellers, setSellers }) => {
                 </div>
               </div>
               
-              <div className="bg-red-500/5 p-4 rounded-2xl border border-red-500/10 mb-4">
-                <p className="text-[9px] text-red-300/60 font-medium leading-relaxed uppercase tracking-widest text-center">
-                  Os clientes poderão selecionar este contato para finalizar pedidos e suporte via chat.
-                </p>
-              </div>
-
               <div className="pt-6 flex gap-4">
                 <button 
                   type="button"
@@ -222,10 +227,7 @@ const SellerList: React.FC<SellerListProps> = ({ sellers, setSellers }) => {
                   className="flex-1 px-8 py-5 bg-red-600 text-white font-black rounded-3xl hover:bg-red-500 shadow-2xl shadow-red-900/40 transition-all active:scale-95 text-[10px] uppercase tracking-[0.3em] flex items-center justify-center gap-3 disabled:opacity-50"
                 >
                   {loading ? (
-                    <>
-                      <Loader2 className="w-5 h-5 animate-spin" />
-                      Gravando...
-                    </>
+                    <Loader2 className="w-5 h-5 animate-spin" />
                   ) : 'Ativar Acesso'}
                 </button>
               </div>

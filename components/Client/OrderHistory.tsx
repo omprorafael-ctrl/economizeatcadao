@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { Order, OrderStatus } from '../../types';
-import { Clock, CheckCircle, Truck, Package, ChevronRight, Calendar, ArrowRight } from 'lucide-react';
+import { Clock, CheckCircle, Truck, Package, ChevronRight, Calendar, ArrowRight, UserCircle2 } from 'lucide-react';
 
 interface OrderHistoryProps {
   orders: Order[];
@@ -48,33 +48,43 @@ const OrderHistory: React.FC<OrderHistoryProps> = ({ orders }) => {
         {orders.map(order => {
           const status = getStatusInfo(order.status);
           return (
-            <div key={order.id} className="bg-white/5 rounded-[35px] p-6 border border-white/5 flex items-center justify-between group active:scale-[0.98] transition-all hover:border-red-500/30">
-              <div className="flex items-center gap-5">
-                <div className={`${status.bg} ${status.color} w-14 h-14 rounded-2xl flex items-center justify-center border border-white/5 shadow-inner group-hover:scale-110 transition-transform`}>
-                  <status.icon className="w-7 h-7" />
+            <div key={order.id} className="bg-white/5 rounded-[35px] p-6 border border-white/5 flex flex-col group active:scale-[0.98] transition-all hover:border-red-500/30">
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-5">
+                  <div className={`${status.bg} ${status.color} w-14 h-14 rounded-2xl flex items-center justify-center border border-white/5 shadow-inner group-hover:scale-110 transition-transform`}>
+                    <status.icon className="w-7 h-7" />
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-3 mb-1">
+                      <span className="font-black text-white italic tracking-widest text-base">#{order.id}</span>
+                      <span className={`text-[8px] font-black px-3 py-1 rounded-lg uppercase tracking-widest border border-white/5 ${status.bg} ${status.color}`}>
+                        {status.label}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-4">
+                      <p className="text-lg font-black text-white italic tracking-tighter">
+                        <span className="text-[9px] text-red-500 mr-1 not-italic">R$</span>
+                        {order.total.toFixed(2).replace('.', ',')}
+                      </p>
+                      <div className="h-4 w-px bg-white/10" />
+                      <p className="text-[10px] text-slate-500 font-bold flex items-center gap-1.5 uppercase tracking-tighter">
+                        <Calendar className="w-3.5 h-3.5 opacity-40" />
+                        {new Date(order.createdAt).toLocaleDateString('pt-BR')}
+                      </p>
+                    </div>
+                  </div>
                 </div>
-                <div>
-                  <div className="flex items-center gap-3 mb-1">
-                    <span className="font-black text-white italic tracking-widest text-base">#{order.id}</span>
-                    <span className={`text-[8px] font-black px-3 py-1 rounded-lg uppercase tracking-widest border border-white/5 ${status.bg} ${status.color}`}>
-                      {status.label}
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-4">
-                    <p className="text-lg font-black text-white italic tracking-tighter">
-                      <span className="text-[9px] text-red-500 mr-1 not-italic">R$</span>
-                      {order.total.toFixed(2).replace('.', ',')}
-                    </p>
-                    <div className="h-4 w-px bg-white/10" />
-                    <p className="text-[10px] text-slate-500 font-bold flex items-center gap-1.5 uppercase tracking-tighter">
-                      <Calendar className="w-3.5 h-3.5 opacity-40" />
-                      {new Date(order.createdAt).toLocaleDateString('pt-BR')}
-                    </p>
-                  </div>
+                <div className="w-10 h-10 bg-white/5 rounded-2xl flex items-center justify-center text-slate-600 group-hover:text-red-500 transition-colors">
+                  <ChevronRight className="w-5 h-5" />
                 </div>
               </div>
-              <div className="w-12 h-12 bg-white/5 rounded-2xl flex items-center justify-center text-slate-600 group-hover:text-red-500 transition-colors">
-                <ChevronRight className="w-6 h-6" />
+
+              {/* Novo Campo: Nome da Vendedora */}
+              <div className="flex items-center gap-2 mt-2 pt-4 border-t border-white/5">
+                <UserCircle2 className="w-3.5 h-3.5 text-emerald-500 opacity-40" />
+                <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest italic">
+                  Atendimento: <span className="text-slate-300 not-italic ml-1">{order.sellerName || 'Finalizado pelo Portal'}</span>
+                </p>
               </div>
             </div>
           );

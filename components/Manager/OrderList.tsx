@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { Order, OrderStatus } from '../../types';
-import { Eye, Clock, Truck, CheckCircle, Package, Search, Filter, Calendar, FileText } from 'lucide-react';
+import { Eye, Clock, Truck, CheckCircle, Package, Search, Filter, Calendar, FileText, UserCircle2 } from 'lucide-react';
 
 interface OrderListProps {
   orders: Order[];
@@ -51,6 +51,7 @@ const OrderList: React.FC<OrderListProps> = ({ orders, setOrders }) => {
               <tr>
                 <th className="px-10 py-6">ID Remessa</th>
                 <th className="px-10 py-6">Canal / Cliente</th>
+                <th className="px-10 py-6">Vendedor(a)</th>
                 <th className="px-10 py-6">Data Emissão</th>
                 <th className="px-10 py-6">Faturamento</th>
                 <th className="px-10 py-6">Status Logístico</th>
@@ -66,6 +67,14 @@ const OrderList: React.FC<OrderListProps> = ({ orders, setOrders }) => {
                     <td className="px-10 py-8">
                       <div className="font-black text-white text-sm uppercase group-hover:text-red-400 transition-colors">{order.clientName}</div>
                       <div className="text-[10px] text-slate-600 font-bold uppercase tracking-tighter mt-1">UID: {order.clientId.slice(0, 8)}...</div>
+                    </td>
+                    <td className="px-10 py-8">
+                      <div className="flex items-center gap-2">
+                        <UserCircle2 className="w-4 h-4 text-emerald-500 opacity-50" />
+                        <span className="text-[11px] font-black text-slate-400 uppercase tracking-wide">
+                          {order.sellerName || 'Sem Vendedor'}
+                        </span>
+                      </div>
                     </td>
                     <td className="px-10 py-8 text-xs font-bold text-slate-400 flex items-center gap-2">
                       <Calendar className="w-3.5 h-3.5 opacity-40" />

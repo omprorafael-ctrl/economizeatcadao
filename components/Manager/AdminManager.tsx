@@ -1,7 +1,11 @@
 
 import React, { useState } from 'react';
 import { User, UserRole } from '../../types';
-import { ShieldCheck, Plus, Trash2, Mail, UserPlus, X, Key, Power, ShieldAlert, ArrowRight } from 'lucide-react';
+import { ShieldCheck, Plus, Trash2, Mail, UserPlus, X, Key, Power, ShieldAlert, ArrowRight, Loader2 } from 'lucide-react';
+import { db, firebaseConfig } from '../../firebaseConfig';
+import { doc, setDoc, deleteDoc, updateDoc } from 'firebase/firestore';
+import { initializeApp, deleteApp } from 'firebase/app';
+import { getAuth, createUserWithEmailAndPassword, signOut } from 'firebase/auth';
 
 interface AdminManagerProps {
   managers: User[];
@@ -11,33 +15,74 @@ interface AdminManagerProps {
 
 const AdminManager: React.FC<AdminManagerProps> = ({ managers, setManagers, currentUser }) => {
   const [showModal, setShowModal] = useState(false);
+  const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({ name: '', email: '', password: '' });
 
-  const handleCreate = (e: React.FormEvent) => {
+  const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
-    const newUser: User = {
-      id: Math.random().toString(36).substr(2, 9),
-      name: formData.name,
-      email: formData.email,
-      role: UserRole.MANAGER,
-      active: true,
-      createdAt: new Date().toISOString()
-    };
-    setManagers(prev => [...prev, newUser]);
-    setFormData({ name: '', email: '', password: '' });
-    setShowModal(false);
-  };
+    if (formData.password.length < 6) {
+      alert("A senha deve ter no mínimo 6 caracteres.");
+      return;
+    }
 
-  const deleteManager = (id: string) => {
-    if (id === currentUser.id) return;
-    if (window.confirm("Deseja revogar o acesso deste administrador?")) {
-      setManagers(prev => prev.filter(m => m.id !== id));
+    setLoading(true);
+    // Inicializa app secundário para criar usuário sem deslogar o gerente atual
+    const secondaryApp = initializeApp(firebaseConfig, "AdminCreationApp");
+    const secondaryAuth = getAuth(secondaryApp);
+
+    try {
+      const userCredential = await createUserWithEmailAndPassword(
+        secondaryAuth, 
+        formData.email, 
+        formData.password
+      );
+      
+      const uid = userCredential.user.uid;
+      const newAdmin: User = {
+        id: uid,
+        name: formData.name,
+        email: formData.email,
+        role: UserRole.MANAGER,
+        active: true,
+        createdAt: new Date().toISOString()
+      };
+
+      // Salva no Firestore
+      await setDoc(doc(db, 'users', uid), newAdmin);
+      
+      // Limpa app secundário
+      await signOut(secondaryAuth);
+      await deleteApp(secondaryApp);
+
+      setFormData({ name: '', email: '', password: '' });
+      setShowModal(false);
+    } catch (error: any) {
+      console.error(error);
+      alert(`Erro ao criar administrador: ${error.message}`);
+      try { await deleteApp(secondaryApp); } catch(e) {}
+    } finally {
+      setLoading(false);
     }
   };
 
-  const toggleStatus = (id: string) => {
+  const deleteManager = async (id: string) => {
     if (id === currentUser.id) return;
-    setManagers(prev => prev.map(m => m.id === id ? { ...m, active: !m.active } : m));
+    if (window.confirm("Deseja revogar o acesso deste administrador permanentemente?")) {
+      try {
+        await deleteDoc(doc(db, 'users', id));
+      } catch (error) {
+        console.error("Erro ao excluir:", error);
+      }
+    }
+  };
+
+  const toggleStatus = async (id: string, currentStatus: boolean) => {
+    if (id === currentUser.id) return;
+    try {
+      await updateDoc(doc(db, 'users', id), { active: !currentStatus });
+    } catch (error) {
+      console.error("Erro ao atualizar status:", error);
+    }
   };
 
   return (
@@ -48,8 +93,8 @@ const AdminManager: React.FC<AdminManagerProps> = ({ managers, setManagers, curr
             <ShieldCheck className="w-8 h-8 text-red-500" />
           </div>
           <div>
-            <h3 className="text-xl font-black text-white italic uppercase tracking-tighter leading-tight">Membros do Comitê</h3>
-            <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest mt-1">Nível de Acesso: Governança Root</p>
+            <h3 className="text-xl font-black text-white italic uppercase tracking-tighter leading-tight">Comitê Gestor</h3>
+            <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest mt-1">Apenas gerentes podem visualizar e gerenciar este módulo</p>
           </div>
         </div>
         <button 
@@ -101,7 +146,7 @@ const AdminManager: React.FC<AdminManagerProps> = ({ managers, setManagers, curr
                 <td className="px-10 py-8 text-center">
                   <button 
                     disabled={manager.id === currentUser.id}
-                    onClick={() => toggleStatus(manager.id)}
+                    onClick={() => toggleStatus(manager.id, manager.active)}
                     className={`inline-flex items-center px-5 py-2 rounded-2xl text-[9px] font-black uppercase tracking-[0.2em] transition-all ${
                       manager.active 
                       ? 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/20' 
@@ -133,14 +178,14 @@ const AdminManager: React.FC<AdminManagerProps> = ({ managers, setManagers, curr
 
       {showModal && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 backdrop-blur-2xl">
-          <div className="absolute inset-0 bg-black/90" onClick={() => setShowModal(false)} />
+          <div className="absolute inset-0 bg-black/90" onClick={() => !loading && setShowModal(false)} />
           <div className="relative bg-[#0a0a0a] w-full max-w-md rounded-[50px] shadow-[0_0_100px_rgba(220,38,38,0.3)] overflow-hidden animate-in zoom-in-95 duration-500 border border-white/5">
             <div className="p-10 border-b border-white/5 bg-gradient-to-r from-red-600 to-red-800 text-white">
               <div className="flex items-center justify-between">
                 <h3 className="text-2xl font-black italic flex items-center gap-3 uppercase tracking-tighter">
                   <UserPlus className="w-8 h-8" /> Novo Gestor
                 </h3>
-                <button onClick={() => setShowModal(false)} className="p-3 bg-black/20 hover:bg-black/40 rounded-xl transition-all">
+                <button onClick={() => !loading && setShowModal(false)} className="p-3 bg-black/20 hover:bg-black/40 rounded-xl transition-all">
                   <X className="w-6 h-6" />
                 </button>
               </div>
@@ -151,6 +196,7 @@ const AdminManager: React.FC<AdminManagerProps> = ({ managers, setManagers, curr
                 <input
                   type="text"
                   required
+                  disabled={loading}
                   className="w-full px-6 py-5 bg-white/5 border border-white/5 rounded-3xl outline-none focus:ring-4 focus:ring-red-500/10 focus:bg-white/10 focus:border-red-500/40 transition-all font-bold text-white text-sm"
                   placeholder="Nome do administrador"
                   value={formData.name}
@@ -162,6 +208,7 @@ const AdminManager: React.FC<AdminManagerProps> = ({ managers, setManagers, curr
                 <input
                   type="email"
                   required
+                  disabled={loading}
                   className="w-full px-6 py-5 bg-white/5 border border-white/5 rounded-3xl outline-none focus:ring-4 focus:ring-red-500/10 focus:bg-white/10 focus:border-red-500/40 transition-all font-bold text-white text-sm"
                   placeholder="acesso@atcadao.com"
                   value={formData.email}
@@ -175,6 +222,7 @@ const AdminManager: React.FC<AdminManagerProps> = ({ managers, setManagers, curr
                   <input
                     type="password"
                     required
+                    disabled={loading}
                     className="w-full pl-14 pr-6 py-5 bg-white/5 border border-white/5 rounded-3xl outline-none focus:ring-4 focus:ring-red-500/10 focus:bg-white/10 focus:border-red-500/40 transition-all font-bold text-white text-sm"
                     placeholder="••••••••"
                     value={formData.password}
@@ -185,6 +233,7 @@ const AdminManager: React.FC<AdminManagerProps> = ({ managers, setManagers, curr
               <div className="pt-6 flex gap-4">
                 <button 
                   type="button"
+                  disabled={loading}
                   onClick={() => setShowModal(false)}
                   className="flex-1 px-8 py-5 border border-white/5 bg-white/5 text-slate-500 font-black rounded-3xl hover:bg-white/10 transition-all text-[10px] uppercase tracking-widest"
                 >
@@ -192,9 +241,10 @@ const AdminManager: React.FC<AdminManagerProps> = ({ managers, setManagers, curr
                 </button>
                 <button 
                   type="submit"
-                  className="flex-1 px-8 py-5 bg-red-600 text-white font-black rounded-3xl hover:bg-red-500 shadow-2xl shadow-red-900/40 transition-all active:scale-95 text-[10px] uppercase tracking-[0.3em]"
+                  disabled={loading}
+                  className="flex-1 px-8 py-5 bg-red-600 text-white font-black rounded-3xl hover:bg-red-500 shadow-2xl shadow-red-900/40 transition-all active:scale-95 text-[10px] uppercase tracking-[0.3em] flex items-center justify-center gap-3"
                 >
-                  Criar Acesso
+                  {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Criar Acesso'}
                 </button>
               </div>
             </form>

@@ -1,10 +1,10 @@
 
 import React, { useState } from 'react';
 import { Product } from '../../types';
-import { Edit2, Trash2, Search, Plus, Power, Package, FileSearch, X, Tag, Flame } from 'lucide-react';
+import { Edit2, Trash2, Search, Plus, Power, Package, FileSearch, X, Tag, Loader2, DollarSign, Layers } from 'lucide-react';
 import PdfImport from './PdfImport';
 import { db } from '../../firebaseConfig';
-import { doc, deleteDoc, updateDoc } from 'firebase/firestore';
+import { collection, addDoc, doc, deleteDoc, updateDoc } from 'firebase/firestore';
 
 interface ProductListProps {
   products: Product[];
@@ -14,6 +14,41 @@ interface ProductListProps {
 const ProductList: React.FC<ProductListProps> = ({ products }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [showImportModal, setShowImportModal] = useState(false);
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [loading, setLoading] = useState(false);
+  
+  const [formData, setFormData] = useState({
+    code: '',
+    description: '',
+    group: '',
+    price: ''
+  });
+
+  const handleAddProduct = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+
+    try {
+      const productData = {
+        code: formData.code.trim(),
+        description: formData.description.trim(),
+        group: formData.group.trim(),
+        price: parseFloat(formData.price.replace(',', '.')),
+        imageUrl: `https://picsum.photos/400/400?random=${Math.floor(Math.random() * 1000)}`,
+        active: true,
+        createdAt: new Date().toISOString()
+      };
+
+      await addDoc(collection(db, 'products'), productData);
+      setFormData({ code: '', description: '', group: '', price: '' });
+      setShowAddModal(false);
+    } catch (error) {
+      console.error("Erro ao adicionar produto:", error);
+      alert("Falha ao salvar produto.");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const toggleStatus = async (id: string, currentStatus: boolean) => {
     try {
@@ -24,7 +59,7 @@ const ProductList: React.FC<ProductListProps> = ({ products }) => {
   };
 
   const deleteProduct = async (id: string) => {
-    if (window.confirm("Deseja realmente excluir este produto?")) {
+    if (window.confirm("Deseja realmente excluir este produto permanentemente?")) {
       try {
         await deleteDoc(doc(db, 'products', id));
       } catch (error) {
@@ -59,7 +94,10 @@ const ProductList: React.FC<ProductListProps> = ({ products }) => {
             >
               <FileSearch className="w-5 h-5 text-red-500" /> Importar PDF IA
             </button>
-            <button className="bg-red-600 text-white px-8 py-5 rounded-[28px] font-black uppercase tracking-[0.2em] text-[10px] flex items-center justify-center gap-3 shadow-2xl shadow-red-900/50 hover:bg-red-500 active:scale-95 transition-all">
+            <button 
+              onClick={() => setShowAddModal(true)}
+              className="bg-red-600 text-white px-8 py-5 rounded-[28px] font-black uppercase tracking-[0.2em] text-[10px] flex items-center justify-center gap-3 shadow-2xl shadow-red-900/50 hover:bg-red-500 active:scale-95 transition-all"
+            >
               <Plus className="w-5 h-5" /> Novo Registro
             </button>
           </div>
@@ -136,6 +174,7 @@ const ProductList: React.FC<ProductListProps> = ({ products }) => {
         </div>
       </div>
 
+      {/* Modal de Importação por IA */}
       {showImportModal && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 backdrop-blur-2xl">
           <div className="absolute inset-0 bg-black/80" onClick={() => setShowImportModal(false)} />
@@ -149,6 +188,102 @@ const ProductList: React.FC<ProductListProps> = ({ products }) => {
               </button>
             </div>
             <PdfImport onClose={() => setShowImportModal(false)} />
+          </div>
+        </div>
+      )}
+
+      {/* Modal de Cadastro Manual (Novo Produto) */}
+      {showAddModal && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 backdrop-blur-2xl">
+          <div className="absolute inset-0 bg-black/95" onClick={() => !loading && setShowAddModal(false)} />
+          <div className="relative bg-[#0a0a0a] w-full max-w-md rounded-[50px] shadow-[0_0_100px_rgba(220,38,38,0.3)] border border-white/5 overflow-hidden animate-in zoom-in-95 duration-500">
+            <div className="p-10 bg-gradient-to-r from-red-600 to-red-800 text-white flex items-center justify-between">
+              <h3 className="text-2xl font-black italic uppercase tracking-tighter flex items-center gap-3">
+                <Package className="w-8 h-8" /> Novo Item
+              </h3>
+              <button onClick={() => !loading && setShowAddModal(false)} className="p-2 bg-black/20 rounded-xl hover:bg-black/40 transition-all">
+                <X className="w-6 h-6" />
+              </button>
+            </div>
+            
+            <form onSubmit={handleAddProduct} className="p-10 space-y-6">
+              <div className="space-y-2">
+                <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.3em] ml-2">SKU / Código</label>
+                <input
+                  type="text"
+                  required
+                  disabled={loading}
+                  className="w-full px-6 py-5 bg-white/5 border border-white/5 rounded-3xl outline-none focus:ring-4 focus:ring-red-500/10 focus:bg-white/10 focus:border-red-500/40 transition-all font-bold text-white text-sm"
+                  placeholder="Ex: 10025"
+                  value={formData.code}
+                  onChange={(e) => setFormData({ ...formData, code: e.target.value })}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.3em] ml-2">Descrição da Mercadoria</label>
+                <input
+                  type="text"
+                  required
+                  disabled={loading}
+                  className="w-full px-6 py-5 bg-white/5 border border-white/5 rounded-3xl outline-none focus:ring-4 focus:ring-red-500/10 focus:bg-white/10 focus:border-red-500/40 transition-all font-bold text-white text-sm"
+                  placeholder="Ex: Arroz Tipo 1 - 5kg"
+                  value={formData.description}
+                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.3em] ml-2">Categoria</label>
+                  <div className="relative">
+                    <Layers className="absolute left-6 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-600" />
+                    <input
+                      type="text"
+                      required
+                      disabled={loading}
+                      className="w-full pl-14 pr-6 py-5 bg-white/5 border border-white/5 rounded-3xl outline-none focus:ring-4 focus:ring-red-500/10 focus:bg-white/10 focus:border-red-500/40 transition-all font-bold text-white text-sm"
+                      placeholder="Grãos"
+                      value={formData.group}
+                      onChange={(e) => setFormData({ ...formData, group: e.target.value })}
+                    />
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.3em] ml-2">Preço Unit.</label>
+                  <div className="relative">
+                    <DollarSign className="absolute left-6 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-600" />
+                    <input
+                      type="text"
+                      required
+                      disabled={loading}
+                      className="w-full pl-14 pr-6 py-5 bg-white/5 border border-white/5 rounded-3xl outline-none focus:ring-4 focus:ring-red-500/10 focus:bg-white/10 focus:border-red-500/40 transition-all font-bold text-white text-sm"
+                      placeholder="0,00"
+                      value={formData.price}
+                      onChange={(e) => setFormData({ ...formData, price: e.target.value })}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div className="pt-6 flex gap-4">
+                <button 
+                  type="button"
+                  disabled={loading}
+                  onClick={() => setShowAddModal(false)}
+                  className="flex-1 px-8 py-5 bg-white/5 text-slate-500 font-black rounded-3xl hover:bg-white/10 transition-all text-[10px] uppercase tracking-widest"
+                >
+                  Cancelar
+                </button>
+                <button 
+                  type="submit"
+                  disabled={loading}
+                  className="flex-1 px-8 py-5 bg-red-600 text-white font-black rounded-3xl hover:bg-red-500 shadow-2xl shadow-red-900/40 transition-all active:scale-95 text-[10px] uppercase tracking-[0.3em] flex items-center justify-center gap-3"
+                >
+                  {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Confirmar'}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}
