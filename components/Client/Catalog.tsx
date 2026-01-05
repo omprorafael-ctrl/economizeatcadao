@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Product } from '../../types';
 import { 
   Search, 
@@ -14,7 +14,9 @@ import {
   Edit3,
   CheckCircle2,
   Filter,
-  Heart
+  Heart,
+  ChevronLeft,
+  ChevronRight
 } from 'lucide-react';
 
 interface CatalogProps {
@@ -28,6 +30,8 @@ const Catalog: React.FC<CatalogProps> = ({ products, onAddToCart }) => {
   const [quantities, setQuantities] = useState<Record<string, number>>({});
   const [addedItems, setAddedItems] = useState<Record<string, boolean>>({});
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
+  
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
   
   const [favorites, setFavorites] = useState<string[]>(() => {
     const saved = localStorage.getItem('atacadao_favorites');
@@ -76,6 +80,16 @@ const Catalog: React.FC<CatalogProps> = ({ products, onAddToCart }) => {
     }, 1200);
   };
 
+  const scrollCategories = (direction: 'left' | 'right') => {
+    if (scrollContainerRef.current) {
+      const scrollAmount = 200;
+      scrollContainerRef.current.scrollBy({
+        left: direction === 'left' ? -scrollAmount : scrollAmount,
+        behavior: 'smooth'
+      });
+    }
+  };
+
   const filteredProducts = products.filter(p => {
     const matchesSearch = p.description.toLowerCase().includes(searchTerm.toLowerCase()) || p.code.includes(searchTerm);
     const matchesGroup = 
@@ -104,9 +118,20 @@ const Catalog: React.FC<CatalogProps> = ({ products, onAddToCart }) => {
             />
           </div>
           
-          {/* Navegação de Categorias com Rolagem Horizontal Obrigatória */}
-          <div className="flex items-center w-full overflow-hidden">
-            <div className="flex gap-1.5 overflow-x-auto flex-nowrap scrollbar-hide pb-1 w-full mask-fade-right">
+          {/* Navegação de Categorias com Setas Laterais */}
+          <div className="relative flex items-center group/nav">
+            {/* Seta Esquerda */}
+            <button 
+              onClick={() => scrollCategories('left')}
+              className="absolute left-0 z-20 p-1.5 bg-white/90 backdrop-blur-sm text-red-600 border border-slate-100 shadow-sm rounded-none hover:bg-red-50 transition-all opacity-0 group-hover/nav:opacity-100 hidden md:block"
+            >
+              <ChevronLeft className="w-5 h-5" />
+            </button>
+
+            <div 
+              ref={scrollContainerRef}
+              className="flex gap-1.5 overflow-x-auto flex-nowrap scrollbar-hide pb-1 w-full mask-fade-right"
+            >
               {groups.map(group => (
                 <button
                   key={group}
@@ -129,6 +154,14 @@ const Catalog: React.FC<CatalogProps> = ({ products, onAddToCart }) => {
               {/* Espaçador final para garantir que o último item não seja cortado pelo fade */}
               <div className="w-8 shrink-0" />
             </div>
+
+            {/* Seta Direita */}
+            <button 
+              onClick={() => scrollCategories('right')}
+              className="absolute right-0 z-20 p-1.5 bg-white/90 backdrop-blur-sm text-red-600 border border-slate-100 shadow-sm rounded-none hover:bg-red-50 transition-all opacity-0 group-hover/nav:opacity-100 hidden md:block"
+            >
+              <ChevronRight className="w-5 h-5" />
+            </button>
           </div>
         </div>
       </div>
