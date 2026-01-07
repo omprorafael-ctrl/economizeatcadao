@@ -12,7 +12,6 @@ import {
   User, 
   CreditCard, 
   FileText, 
-  Activity,
   Search,
   Check,
   Ban,
@@ -24,28 +23,16 @@ import {
   Loader2,
   AlertTriangle,
   Users,
-  UserPlus,
   MapPin,
-  Mail,
-  Building2,
-  Lock,
   Key,
-  AlertCircle,
-  ShieldAlert,
-  ShieldCheck,
   ClipboardCheck,
-  EyeOff,
   UserCircle,
-  Filter,
-  ChevronDown,
   Send
 } from 'lucide-react';
-import { db, firebaseConfig, auth } from '../../firebaseConfig';
-import { doc, updateDoc, setDoc, collection, addDoc } from 'firebase/firestore';
-import { initializeApp, deleteApp } from 'firebase/app';
-import { getAuth, createUserWithEmailAndPassword, signOut, updatePassword } from 'firebase/auth';
+import { db, auth } from '../../firebaseConfig';
+import { doc, updateDoc, collection, addDoc } from 'firebase/firestore';
+import { updatePassword } from 'firebase/auth';
 import { can, PermissionAction } from '../../utils/permissions';
-import { isValidCpfCnpj } from '../../utils/validators';
 
 interface SellerDashboardProps {
   user: Seller;
@@ -62,19 +49,12 @@ const SellerDashboard: React.FC<SellerDashboardProps> = ({ user, orders, clients
   const [showPasswordModal, setShowPasswordModal] = useState(false);
   const [statusFilter, setStatusFilter] = useState<string>('all');
   
-  // Modal de confirmação para ações críticas (Faturar/Cancelar)
   const [actionModal, setActionModal] = useState<{
     isOpen: boolean;
     type: 'CANCEL' | 'INVOICE' | 'SEND' | null;
     orderId: string | null;
   }>({ isOpen: false, type: null, orderId: null });
   const [cancelReason, setCancelReason] = useState('');
-
-  const [showClientModal, setShowClientModal] = useState(false);
-  const [clientLoading, setClientLoading] = useState(false);
-  const [clientForm, setClientForm] = useState({
-    name: '', email: '', password: '', cpfCnpj: '', phone: '', address: ''
-  });
 
   const myOrders = useMemo(() => orders.filter(o => o.sellerId === user.id), [orders, user.id]);
 
@@ -110,21 +90,11 @@ const SellerDashboard: React.FC<SellerDashboardProps> = ({ user, orders, clients
     );
   }, [clients, searchTerm]);
 
-  // Função para abrir o modal de confirmação
   const handleRequestAction = (orderId: string, type: 'CANCEL' | 'INVOICE' | 'SEND') => {
-    let permission: PermissionAction = 'order_status_invoiced';
-    if (type === 'CANCEL') permission = 'order_status_cancelled';
-    
-    if (!can(user.role, permission)) {
-      alert("Acesso Negado: Seu perfil não tem permissão para realizar esta ação.");
-      return;
-    }
-
     setCancelReason('');
     setActionModal({ isOpen: true, type, orderId });
   };
 
-  // Função disparada pelo botão "Confirmar" dentro do Modal
   const confirmAction = async () => {
     if (!actionModal.orderId || !actionModal.type) return;
 
@@ -142,21 +112,6 @@ const SellerDashboard: React.FC<SellerDashboardProps> = ({ user, orders, clients
   };
 
   const executeUpdate = async (id: string, newStatus: OrderStatus, reason: string | null = null) => {
-    let requiredPermission: PermissionAction | null = null;
-    
-    switch (newStatus) {
-      case OrderStatus.IN_PROGRESS: requiredPermission = 'order_status_in_progress'; break;
-      case OrderStatus.INVOICED: requiredPermission = 'order_status_invoiced'; break;
-      case OrderStatus.CANCELLED: requiredPermission = 'order_status_cancelled'; break;
-      case OrderStatus.SENT: requiredPermission = 'order_status_invoiced'; break;
-      default: break;
-    }
-
-    if (requiredPermission && !can(user.role, requiredPermission)) {
-      alert(`Acesso Negado.`);
-      return;
-    }
-
     setUpdatingId(id);
     try {
       const orderRef = doc(db, 'orders', id);
@@ -165,12 +120,11 @@ const SellerDashboard: React.FC<SellerDashboardProps> = ({ user, orders, clients
       
       if (reason) updateData.cancelReason = reason;
 
-      // Lógica de SLA e Notificações
       if (newStatus === OrderStatus.IN_PROGRESS) {
-        updateData.receivedAt = now; // Marco zero do atendimento
+        updateData.receivedAt = now;
         await addDoc(collection(db, 'notifications'), {
-          title: 'Atendimento Iniciado',
-          message: `${user.name} lançou o pedido #${id}`,
+          title: 'Pedido Recebido',
+          message: `${user.name} iniciou o lançamento do pedido #${id}`,
           type: 'order_received',
           read: false,
           createdAt: now,
@@ -179,14 +133,14 @@ const SellerDashboard: React.FC<SellerDashboardProps> = ({ user, orders, clients
       } else if (newStatus === OrderStatus.SENT) {
         await addDoc(collection(db, 'notifications'), {
           title: 'Pedido Enviado',
-          message: `O pedido #${id} foi despachado por ${user.name}`,
+          message: `O vendedor ${user.name} despachou o pedido #${id}`,
           type: 'info',
           read: false,
           createdAt: now,
           orderId: id
         });
       } else if (newStatus === OrderStatus.INVOICED) {
-        updateData.invoicedAt = now; // Fim do SLA
+        updateData.invoicedAt = now;
       }
 
       await updateDoc(orderRef, updateData);
@@ -199,8 +153,8 @@ const SellerDashboard: React.FC<SellerDashboardProps> = ({ user, orders, clients
         }
       }
     } catch (error: any) {
-      console.error("Erro ao atualizar status:", error);
-      alert(`Erro no servidor.`);
+      console.error("Erro ao atualizar pedido:", error);
+      alert("Falha ao salvar no banco de dados.");
     } finally {
       setUpdatingId(null);
     }
@@ -209,8 +163,8 @@ const SellerDashboard: React.FC<SellerDashboardProps> = ({ user, orders, clients
   const getClientInfo = (clientId: string) => clients.find(c => c.id === clientId);
 
   const statusMap = {
-    [OrderStatus.GENERATED]: { label: 'Novo Pedido', color: 'bg-blue-50 text-blue-600 border-blue-100', icon: Clock },
-    [OrderStatus.IN_PROGRESS]: { label: 'Recebido', color: 'bg-amber-50 text-amber-600 border-amber-100', icon: ClipboardCheck },
+    [OrderStatus.GENERATED]: { label: 'Novo', color: 'bg-blue-50 text-blue-600 border-blue-100', icon: Clock },
+    [OrderStatus.IN_PROGRESS]: { label: 'Lançado', color: 'bg-amber-50 text-amber-600 border-amber-100', icon: ClipboardCheck },
     [OrderStatus.INVOICED]: { label: 'Faturado', color: 'bg-emerald-50 text-emerald-600 border-emerald-100', icon: CheckCircle2 },
     [OrderStatus.CANCELLED]: { label: 'Cancelado', color: 'bg-red-50 text-red-600 border-red-100', icon: XCircle },
     [OrderStatus.SENT]: { label: 'Enviado', color: 'bg-purple-50 text-purple-600 border-purple-100', icon: Send },
@@ -218,16 +172,16 @@ const SellerDashboard: React.FC<SellerDashboardProps> = ({ user, orders, clients
   };
 
   return (
-    <div className="flex flex-col h-screen bg-slate-50 overflow-hidden">
+    <div className="flex flex-col h-screen bg-slate-50 overflow-hidden relative">
       <header className="h-20 bg-white border-b border-slate-200 flex items-center justify-between px-6 sm:px-10 shrink-0 z-30 shadow-sm">
         <div className="flex items-center gap-4">
-          <div className="w-12 h-12 bg-red-600 rounded-2xl flex items-center justify-center shadow-lg" onClick={() => setActiveTab('portfolio')}>
+          <div className="w-12 h-12 bg-red-600 rounded-2xl flex items-center justify-center shadow-lg cursor-pointer" onClick={() => setActiveTab('portfolio')}>
             <ShoppingBag className="w-6 h-6 text-white" />
           </div>
           <div className="hidden xs:block">
-            <h1 className="text-lg font-black text-slate-900 uppercase leading-none tracking-tighter">Canal de Vendas</h1>
+            <h1 className="text-lg font-black text-slate-900 uppercase leading-none tracking-tighter">Economize Atacadão</h1>
             <p className="text-[10px] text-slate-400 font-bold uppercase mt-1.5 flex items-center gap-2">
-              <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse" /> Operador: {user.name}
+              <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse" /> Vendedor: {user.name}
             </p>
           </div>
         </div>
@@ -236,7 +190,7 @@ const SellerDashboard: React.FC<SellerDashboardProps> = ({ user, orders, clients
           <div className="hidden md:flex relative w-64 group">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-300 w-4 h-4" />
             <input 
-              type="text" placeholder="Buscar..."
+              type="text" placeholder="Pesquisar..."
               className="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold outline-none focus:bg-white focus:border-red-300 transition-all shadow-inner"
               value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)}
             />
@@ -244,7 +198,7 @@ const SellerDashboard: React.FC<SellerDashboardProps> = ({ user, orders, clients
           <button onClick={() => setActiveTab('profile')} className={`w-10 h-10 rounded-xl border flex items-center justify-center transition-all ${activeTab === 'profile' ? 'bg-red-600 border-red-600 text-white shadow-lg' : 'bg-white border-slate-100 text-slate-400'}`}>
             <User className="w-5 h-5" />
           </button>
-          <button onClick={onLogout} className="p-3 text-slate-400 hover:text-red-600 rounded-2xl"><LogOut className="w-5 h-5" /></button>
+          <button onClick={onLogout} className="p-3 text-slate-400 hover:text-red-600 transition-colors"><LogOut className="w-5 h-5" /></button>
         </div>
       </header>
 
@@ -254,20 +208,13 @@ const SellerDashboard: React.FC<SellerDashboardProps> = ({ user, orders, clients
         <TabBtn active={activeTab === 'clients'} onClick={() => setActiveTab('clients')} icon={Users} label="Clientes" />
       </div>
 
-      <main className="flex-1 overflow-auto p-4 sm:p-8 pb-20">
+      <main className="flex-1 overflow-auto p-4 sm:p-8 pb-24">
         <div className="max-w-4xl mx-auto space-y-6">
-          
           {activeTab !== 'profile' && (
             <div className="flex justify-between items-center px-2">
               <h2 className="text-[11px] font-black text-slate-400 uppercase tracking-[0.3em]">
                 {activeTab === 'portfolio' ? 'Pedidos Ativos' : activeTab === 'history' ? 'Finalizados' : 'Base de Clientes'}
               </h2>
-              {activeTab === 'portfolio' || activeTab === 'history' ? (
-                <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="bg-white border border-slate-200 rounded-xl px-4 py-2 text-[9px] font-black uppercase tracking-widest outline-none">
-                  <option value="all">Filtro Status</option>
-                  {Object.values(OrderStatus).map(s => <option key={s} value={s}>{s.toUpperCase()}</option>)}
-                </select>
-              ) : null}
             </div>
           )}
 
@@ -279,21 +226,25 @@ const SellerDashboard: React.FC<SellerDashboardProps> = ({ user, orders, clients
                     <div className="w-14 h-14 bg-slate-50 rounded-2xl flex items-center justify-center font-black text-xl text-slate-400 uppercase border border-slate-100">{client.name.charAt(0)}</div>
                     <div>
                       <h3 className="text-sm font-bold text-slate-800 uppercase">{client.name}</h3>
-                      <p className="text-[10px] text-slate-400 font-bold mt-1 uppercase">{client.cpfCnpj}</p>
+                      <p className="text-[10px] text-slate-400 font-bold mt-1 uppercase tracking-widest">{client.cpfCnpj}</p>
                     </div>
                   </div>
-                  <a href={`https://wa.me/${client.phone.replace(/\D/g, '')}`} target="_blank" className="p-3 bg-emerald-50 text-emerald-600 rounded-xl border border-emerald-100"><MessageCircle className="w-5 h-5" /></a>
+                  <a href={`https://wa.me/${client.phone.replace(/\D/g, '')}`} target="_blank" className="p-3 bg-emerald-50 text-emerald-600 rounded-xl border border-emerald-100 transition-colors"><MessageCircle className="w-5 h-5" /></a>
                 </div>
               ))}
             </div>
           ) : activeTab === 'profile' ? (
-            <div className="p-8 bg-white rounded-[40px] border border-slate-100 text-center space-y-6">
-               <UserCircle className="w-20 h-20 text-slate-200 mx-auto" />
-               <div>
-                  <h2 className="text-xl font-black text-slate-900 uppercase">{user.name}</h2>
-                  <p className="text-[10px] text-slate-400 font-bold uppercase mt-1">ID Operador: {user.id.slice(-6)}</p>
+            <div className="p-10 bg-white rounded-[40px] border border-slate-100 text-center space-y-6 shadow-md">
+               <div className="w-24 h-24 bg-red-50 text-red-600 rounded-full flex items-center justify-center mx-auto border border-red-100 shadow-inner">
+                  <UserCircle className="w-12 h-12" />
                </div>
-               <button onClick={() => setShowPasswordModal(true)} className="px-8 py-3 bg-red-600 text-white font-black text-[10px] uppercase rounded-2xl">Trocar Senha</button>
+               <div>
+                  <h2 className="text-xl font-black text-slate-900 uppercase tracking-tight">{user.name}</h2>
+                  <p className="text-[10px] text-slate-400 font-bold uppercase mt-1 tracking-widest italic">{user.email}</p>
+               </div>
+               <div className="pt-4">
+                  <button onClick={() => setShowPasswordModal(true)} className="px-10 py-3.5 bg-red-600 text-white font-black text-[10px] uppercase rounded-2xl hover:bg-red-700 transition-all shadow-xl">Configurar Senha</button>
+               </div>
             </div>
           ) : (
             <div className="space-y-4">
@@ -301,7 +252,7 @@ const SellerDashboard: React.FC<SellerDashboardProps> = ({ user, orders, clients
                 const status = statusMap[order.status] || statusMap[OrderStatus.GENERATED];
                 const isUpdating = updatingId === order.id;
                 return (
-                  <div key={order.id} className="bg-white rounded-[32px] border border-slate-100 p-6 flex flex-col lg:flex-row lg:items-center justify-between gap-6 hover:shadow-xl transition-all">
+                  <div key={order.id} className="bg-white rounded-[32px] border border-slate-100 p-6 flex flex-col lg:flex-row lg:items-center justify-between gap-6 hover:shadow-lg transition-all">
                     <div className="flex items-center gap-5">
                       <div className={`w-14 h-14 rounded-2xl flex items-center justify-center border-2 transition-colors shrink-0 ${status.color}`}>
                         {isUpdating ? <Loader2 className="w-7 h-7 animate-spin" /> : React.createElement(status.icon, { className: "w-7 h-7" })}
@@ -319,7 +270,7 @@ const SellerDashboard: React.FC<SellerDashboardProps> = ({ user, orders, clients
                         <p className="font-black text-slate-900 text-lg tracking-tighter">R$ {order.total.toFixed(2).replace('.', ',')}</p>
                       </div>
                       <div className="flex gap-2">
-                        <button onClick={() => setSelectedOrder(order)} className="p-3 bg-slate-50 text-slate-400 hover:text-slate-900 rounded-xl"><Eye className="w-5 h-5" /></button>
+                        <button onClick={() => setSelectedOrder(order)} className="p-3 bg-slate-50 text-slate-400 hover:text-slate-900 rounded-xl border border-slate-100"><Eye className="w-5 h-5" /></button>
                         {activeTab === 'portfolio' && (
                           <div className="flex items-center gap-1.5 bg-slate-50/50 p-1 rounded-2xl border border-slate-100">
                              {order.status === OrderStatus.GENERATED && (
@@ -342,92 +293,85 @@ const SellerDashboard: React.FC<SellerDashboardProps> = ({ user, orders, clients
         </div>
       </main>
 
-      {/* MODAL DE CONFIRMAÇÃO PARA FATURAR/CANCELAR */}
+      {/* Action Modal de Confirmação (Centralizado e visível) */}
       {actionModal.isOpen && (
-        <div className="fixed inset-0 z-[150] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="bg-white w-full max-w-sm rounded-[32px] overflow-hidden shadow-2xl border border-slate-100">
-            <div className={`p-6 flex items-center gap-4 ${actionModal.type === 'CANCEL' ? 'bg-red-50' : actionModal.type === 'SEND' ? 'bg-purple-50' : 'bg-emerald-50'}`}>
-              <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${actionModal.type === 'CANCEL' ? 'bg-red-600 text-white' : actionModal.type === 'SEND' ? 'bg-purple-600 text-white' : 'bg-emerald-600 text-white'}`}>
-                {actionModal.type === 'CANCEL' ? <Ban className="w-6 h-6" /> : actionModal.type === 'SEND' ? <Send className="w-6 h-6" /> : <CheckCircle2 className="w-6 h-6" />}
+        <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-slate-900/80 backdrop-blur-md animate-in fade-in duration-300">
+          <div className="bg-white w-full max-w-sm rounded-[40px] overflow-hidden shadow-2xl border border-white/20">
+            <div className={`p-8 flex flex-col items-center text-center gap-4 ${actionModal.type === 'CANCEL' ? 'bg-red-50' : 'bg-emerald-50'}`}>
+              <div className={`w-16 h-16 rounded-3xl flex items-center justify-center shadow-lg ${actionModal.type === 'CANCEL' ? 'bg-red-600 text-white' : 'bg-emerald-600 text-white'}`}>
+                {actionModal.type === 'CANCEL' ? <Ban className="w-8 h-8" /> : <CheckCircle2 className="w-8 h-8" />}
               </div>
               <div>
                 <h3 className="font-black text-slate-900 uppercase text-xs tracking-widest">
-                  {actionModal.type === 'CANCEL' ? 'Confirmar Cancelamento' : actionModal.type === 'SEND' ? 'Confirmar Envio' : 'Confirmar Faturamento'}
+                  {actionModal.type === 'CANCEL' ? 'Confirmar Cancelamento' : 'Confirmar Faturamento'}
                 </h3>
-                <p className="text-[10px] font-bold text-slate-500 uppercase mt-1">Pedido #{actionModal.orderId}</p>
+                <p className="text-[10px] font-bold text-slate-500 uppercase mt-1 tracking-widest">PEDIDO #{actionModal.orderId}</p>
               </div>
             </div>
             
-            <div className="p-6 space-y-4">
+            <div className="p-8 space-y-6">
               {actionModal.type === 'CANCEL' ? (
                 <div>
-                  <label className="text-[9px] font-black text-slate-400 uppercase mb-2 block tracking-widest">Motivo do Cancelamento</label>
+                  <label className="text-[9px] font-black text-slate-400 uppercase mb-3 block tracking-widest ml-1">Motivo do Cancelamento</label>
                   <textarea 
                     autoFocus value={cancelReason} onChange={(e) => setCancelReason(e.target.value)}
-                    placeholder="Ex: Produto em falta no estoque..."
-                    className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:bg-white focus:border-red-300 text-xs font-bold resize-none"
+                    placeholder="Informe o motivo da exclusão..."
+                    className="w-full p-5 bg-slate-50 border border-slate-200 rounded-[24px] outline-none focus:bg-white focus:border-red-300 text-xs font-bold resize-none shadow-inner"
                     rows={3}
                   />
                 </div>
               ) : (
-                <p className="text-xs font-bold text-slate-600 leading-relaxed">Você deseja confirmar o status deste pedido? Esta ação notificará o sistema e atualizará o fluxo financeiro.</p>
+                <p className="text-xs font-bold text-slate-500 leading-relaxed text-center uppercase tracking-tight">Você confirma que este pedido foi faturado e enviado para a logística?</p>
               )}
               
-              <div className="flex gap-3 pt-2">
-                <button onClick={() => setActionModal({ isOpen: false, type: null, orderId: null })} className="flex-1 py-3.5 bg-slate-100 text-slate-500 rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-slate-200">Voltar</button>
-                <button onClick={confirmAction} className={`flex-1 py-3.5 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-lg ${actionModal.type === 'CANCEL' ? 'bg-red-600 shadow-red-200' : actionModal.type === 'SEND' ? 'bg-purple-600 shadow-purple-200' : 'bg-emerald-600 shadow-emerald-200'}`}>Confirmar</button>
+              <div className="flex flex-col gap-3">
+                <button onClick={confirmAction} className={`w-full py-4 text-white rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] shadow-lg transition-transform active:scale-95 ${actionModal.type === 'CANCEL' ? 'bg-red-600' : 'bg-emerald-600'}`}>Confirmar Ação</button>
+                <button onClick={() => setActionModal({ isOpen: false, type: null, orderId: null })} className="w-full py-4 bg-slate-100 text-slate-400 rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] hover:bg-slate-200 transition-colors">Voltar</button>
               </div>
             </div>
           </div>
         </div>
       )}
 
-      {/* Modal de Detalhes do Pedido */}
       {selectedOrder && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-md" onClick={() => setSelectedOrder(null)} />
-          <div className="relative bg-white w-full max-w-xl rounded-[40px] shadow-2xl overflow-hidden flex flex-col max-h-[90vh] border border-slate-100 animate-in zoom-in-95 duration-300">
+          <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-md" onClick={() => setSelectedOrder(null)} />
+          <div className="relative bg-white w-full max-w-xl rounded-[48px] shadow-2xl overflow-hidden flex flex-col max-h-[90vh] border border-slate-100 animate-in zoom-in-95 duration-300">
             <div className="p-8 bg-slate-50 border-b flex items-center justify-between">
               <div className="flex items-center gap-4">
-                <div className="w-12 h-12 bg-red-600 text-white rounded-2xl flex items-center justify-center"><FileText className="w-6 h-6" /></div>
+                <div className="w-12 h-12 bg-red-600 text-white rounded-2xl flex items-center justify-center shadow-lg"><FileText className="w-6 h-6" /></div>
                 <div>
-                  <h2 className="text-lg font-black text-slate-900 uppercase leading-none">Pedido #{selectedOrder.id}</h2>
-                  <p className="text-[10px] text-slate-400 font-bold mt-2 uppercase tracking-widest">Dossiê de Conferência</p>
+                  <h2 className="text-lg font-black text-slate-900 uppercase leading-none tracking-tighter">Pedido #{selectedOrder.id}</h2>
+                  <p className="text-[10px] text-slate-400 font-bold mt-2 uppercase tracking-widest italic">Conferência Operacional</p>
                 </div>
               </div>
-              <button onClick={() => setSelectedOrder(null)} className="p-3 bg-white hover:bg-red-50 text-slate-300 rounded-2xl border border-slate-100"><X className="w-6 h-6" /></button>
+              <button onClick={() => setSelectedOrder(null)} className="p-3 bg-white hover:bg-red-50 text-slate-300 rounded-2xl border border-slate-100 shadow-sm transition-all"><X className="w-6 h-6" /></button>
             </div>
 
-            <div className="flex-1 overflow-y-auto p-8 space-y-6">
+            <div className="flex-1 overflow-y-auto p-8 space-y-8 scrollbar-hide">
               <div className="p-6 bg-slate-100/50 rounded-3xl border border-slate-200">
-                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 flex items-center gap-2"><User className="w-3.5 h-3.5" /> Cliente</p>
-                <p className="text-sm font-black text-slate-800 uppercase">{selectedOrder.clientName}</p>
-                {getClientInfo(selectedOrder.clientId) && (
-                  <div className="grid grid-cols-2 gap-4 mt-6">
-                    <a href={`tel:${getClientInfo(selectedOrder.clientId)?.phone}`} className="flex items-center gap-3 bg-white p-4 rounded-2xl border border-slate-200">
-                      <div className="bg-red-50 p-2 rounded-lg text-red-500"><Phone className="w-4 h-4" /></div>
-                      <div><p className="text-[10px] font-black text-slate-700">{getClientInfo(selectedOrder.clientId)?.phone}</p></div>
-                    </a>
-                    <a href={`https://wa.me/${getClientInfo(selectedOrder.clientId)?.phone?.replace(/\D/g, '')}`} target="_blank" className="flex items-center gap-3 bg-emerald-50 p-4 rounded-2xl border border-emerald-100">
-                      <div className="bg-emerald-500 p-2 rounded-lg text-white"><MessageCircle className="w-4 h-4" /></div>
-                      <div><p className="text-[10px] font-black text-emerald-800">WhatsApp</p></div>
-                    </a>
-                  </div>
-                )}
+                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 flex items-center gap-2"><UserCircle className="w-4 h-4 text-red-500" /> Cliente / Razão</p>
+                <p className="text-sm font-black text-slate-800 uppercase tracking-tight">{selectedOrder.clientName}</p>
               </div>
 
-              <div className="border border-slate-100 rounded-[30px] overflow-hidden">
-                {selectedOrder.items.map((item, idx) => (
-                  <div key={idx} className="p-5 border-b border-slate-50 last:border-0 flex justify-between items-center hover:bg-slate-50/50">
-                    <div><p className="text-xs font-black text-slate-800 uppercase">{item.description}</p><p className="text-[9px] text-slate-400 font-bold mt-1 uppercase tracking-widest">{item.quantity} un • R$ {item.unitPrice.toFixed(2).replace('.', ',')}</p></div>
-                    <p className="text-xs font-black text-slate-900">R$ {item.subtotal.toFixed(2).replace('.', ',')}</p>
-                  </div>
-                ))}
+              <div className="space-y-4">
+                 <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Produtos Listados</p>
+                 <div className="border border-slate-100 rounded-[32px] overflow-hidden shadow-sm bg-white">
+                   {selectedOrder.items.map((item, idx) => (
+                     <div key={idx} className="p-5 border-b border-slate-50 last:border-0 flex justify-between items-center hover:bg-slate-50/50 transition-colors">
+                       <div><p className="text-xs font-black text-slate-800 uppercase leading-tight">{item.description}</p><p className="text-[9px] text-slate-400 font-bold mt-1.5 uppercase tracking-widest">{item.quantity} unidades • R$ {item.unitPrice.toFixed(2).replace('.', ',')} / un</p></div>
+                       <p className="text-xs font-black text-slate-900 tracking-tighter">R$ {item.subtotal.toFixed(2).replace('.', ',')}</p>
+                     </div>
+                   ))}
+                 </div>
               </div>
 
-              <div className="p-8 rounded-[40px] bg-slate-900 text-white flex justify-between items-center shadow-2xl">
-                <div><p className="text-[10px] font-black uppercase text-red-500 mb-1.5 tracking-widest">Faturamento</p><p className="text-4xl font-black tracking-tighter">R$ {selectedOrder.total.toFixed(2).replace('.', ',')}</p></div>
-                <div className={`px-4 py-2 rounded-2xl text-[9px] font-black uppercase tracking-widest bg-white/10 border border-white/20`}>{(statusMap[selectedOrder.status] || {label: selectedOrder.status}).label}</div>
+              <div className="p-8 rounded-[40px] bg-slate-900 text-white flex justify-between items-center shadow-2xl relative overflow-hidden">
+                <div className="relative z-10">
+                  <p className="text-[10px] font-black uppercase text-red-500 mb-2 tracking-[0.2em]">Faturamento Total</p>
+                  <p className="text-4xl font-black tracking-tighter">R$ {selectedOrder.total.toFixed(2).replace('.', ',')}</p>
+                </div>
+                <div className={`relative z-10 px-4 py-2 rounded-2xl text-[9px] font-black uppercase tracking-widest bg-white/10 border border-white/20`}>{(statusMap[selectedOrder.status] || {label: selectedOrder.status}).label}</div>
               </div>
             </div>
           </div>
@@ -439,8 +383,6 @@ const SellerDashboard: React.FC<SellerDashboardProps> = ({ user, orders, clients
   );
 };
 
-// --- Helper Components ---
-
 const ActionBtn = ({ 
   disabled, onClick, label, icon: Icon, color 
 }: { 
@@ -449,9 +391,9 @@ const ActionBtn = ({
   <button
     disabled={disabled}
     onClick={(e) => { e.stopPropagation(); onClick(); }}
-    className={`p-2 rounded-xl border transition-all flex flex-col items-center justify-center gap-1 flex-1 min-w-[50px] ${
+    className={`p-2.5 rounded-xl border transition-all flex flex-col items-center justify-center gap-1 flex-1 min-w-[60px] ${
       color
-    } border-transparent hover:brightness-95 disabled:opacity-50`}
+    } border-transparent hover:brightness-95 active:scale-90 disabled:opacity-50`}
   >
     <Icon className="w-4 h-4" />
     <span className="text-[7px] font-black uppercase tracking-widest">{label}</span>
@@ -459,53 +401,47 @@ const ActionBtn = ({
 );
 
 const TabBtn = ({ active, onClick, icon: Icon, label }: { active: boolean, onClick: () => void, icon: any, label: string }) => (
-  <button onClick={onClick} className={`py-4 text-[10px] font-black uppercase tracking-widest transition-all relative whitespace-nowrap ${active ? 'text-red-600' : 'text-slate-400 hover:text-slate-600'}`}>
+  <button onClick={onClick} className={`py-4 text-[10px] font-black uppercase tracking-[0.2em] transition-all relative whitespace-nowrap ${active ? 'text-red-600' : 'text-slate-400 hover:text-slate-600'}`}>
     <div className="flex items-center gap-2"><Icon className="w-3.5 h-3.5" /> {label}</div>
-    {active && <div className="absolute bottom-0 left-0 right-0 h-1 bg-red-600 rounded-t-full" />}
+    {active && <div className="absolute bottom-0 left-0 right-0 h-1 bg-red-600 rounded-t-full shadow-lg" />}
   </button>
-);
-
-const NoItems = ({ icon: Icon, text }: { icon: any, text: string }) => (
-  <div className="py-20 text-center flex flex-col items-center justify-center opacity-20">
-    <Icon className="w-16 h-16 mb-4" />
-    <p className="text-sm font-black uppercase tracking-widest text-slate-900">{text}</p>
-  </div>
 );
 
 const ChangePasswordModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  const [showPass, setShowPass] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
   const handleUpdate = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (newPassword.length < 6) { setError("Mínimo 6 caracteres."); return; }
-    if (newPassword !== confirmPassword) { setError("Senhas diferentes."); return; }
+    if (newPassword.length < 6) { alert("Mínimo 6 caracteres."); return; }
+    if (newPassword !== confirmPassword) { alert("Senhas diferentes."); return; }
     setLoading(true);
     try {
       if (auth.currentUser) {
         await updatePassword(auth.currentUser, newPassword);
-        alert("Sucesso!");
+        alert("Senha atualizada!");
         onClose();
       }
     } catch (err: any) {
-      setError("Erro. Saia e entre novamente.");
+      alert("Erro de segurança. Por favor, saia do sistema e entre novamente para trocar a senha.");
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 backdrop-blur-md bg-slate-900/40">
-      <div className="relative bg-white w-full max-w-sm rounded-3xl shadow-2xl p-8 space-y-6">
-        <h3 className="text-xs font-black uppercase tracking-widest text-slate-800">Nova Senha</h3>
+    <div className="fixed inset-0 z-[300] flex items-center justify-center p-4 backdrop-blur-md bg-slate-900/60">
+      <div className="relative bg-white w-full max-w-sm rounded-[40px] shadow-2xl p-10 space-y-8 animate-in zoom-in-95">
+        <div className="text-center">
+           <div className="w-16 h-16 bg-slate-50 border border-slate-100 rounded-3xl flex items-center justify-center mx-auto mb-4"><Key className="w-7 h-7 text-slate-300" /></div>
+           <h3 className="text-sm font-black uppercase tracking-widest text-slate-800">Novo Acesso</h3>
+        </div>
         <form onSubmit={handleUpdate} className="space-y-4">
-          <input type={showPass ? "text" : "password"} required className="w-full p-4 bg-slate-50 rounded-2xl text-xs font-bold border border-slate-200" placeholder="Senha" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} />
-          <input type={showPass ? "text" : "password"} required className="w-full p-4 bg-slate-50 rounded-2xl text-xs font-bold border border-slate-200" placeholder="Confirmar" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} />
-          <button type="submit" disabled={loading} className="w-full py-4 bg-red-600 text-white font-black text-[10px] uppercase rounded-2xl">Salvar</button>
-          <button type="button" onClick={onClose} className="w-full text-[9px] font-black uppercase text-slate-400">Cancelar</button>
+          <input type="password" required className="w-full p-5 bg-slate-50 rounded-[20px] text-xs font-bold border border-slate-100 outline-none focus:bg-white focus:border-red-200 transition-all shadow-inner" placeholder="Senha" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} />
+          <input type="password" required className="w-full p-5 bg-slate-50 rounded-[20px] text-xs font-bold border border-slate-100 outline-none focus:bg-white focus:border-red-200 transition-all shadow-inner" placeholder="Confirmar" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} />
+          <button type="submit" disabled={loading} className="w-full py-4.5 bg-red-600 text-white font-black text-[10px] uppercase tracking-widest rounded-2xl shadow-xl hover:bg-red-700 transition-all">Salvar</button>
+          <button type="button" onClick={onClose} className="w-full text-[9px] font-black uppercase text-slate-400 tracking-widest pt-2">Voltar</button>
         </form>
       </div>
     </div>

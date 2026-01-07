@@ -17,7 +17,8 @@ import {
   CheckCircle2,
   ShieldCheck,
   Eye,
-  EyeOff
+  EyeOff,
+  ShoppingBag
 } from 'lucide-react';
 
 const Login: React.FC<{ onLogin: (user: User) => void }> = () => {
@@ -92,11 +93,13 @@ const Login: React.FC<{ onLogin: (user: User) => void }> = () => {
       
       <div className="w-full max-w-[400px] relative z-10 bg-white p-8 md:p-10 rounded-2xl shadow-xl border border-slate-100">
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-14 h-14 bg-red-600 rounded-xl shadow-lg shadow-red-200 mb-4">
-            <LogIn className="w-7 h-7 text-white" />
+          <div className="mb-6 inline-block">
+            <div className="w-20 h-20 bg-red-600 rounded-3xl flex items-center justify-center mx-auto shadow-xl shadow-red-200">
+              <ShoppingBag className="w-10 h-10 text-white" />
+            </div>
           </div>
-          <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Portal Atacadão</h1>
-          <p className="text-slate-500 text-xs uppercase tracking-wider font-medium mt-1">Acesso Restrito B2B</p>
+          <h1 className="text-2xl font-black text-slate-900 tracking-tighter uppercase">Economize Atacadão</h1>
+          <p className="text-slate-500 text-[10px] uppercase tracking-[0.3em] font-black mt-1">Portal B2B de Logística</p>
         </div>
 
         {error && (
@@ -162,13 +165,13 @@ const Login: React.FC<{ onLogin: (user: User) => void }> = () => {
           <button
             type="submit"
             disabled={loading}
-            className="w-full bg-red-600 hover:bg-red-700 text-white py-3 rounded-lg font-bold text-xs uppercase tracking-wide flex items-center justify-center gap-2 shadow-md shadow-red-100 active:scale-[0.98] transition-all disabled:opacity-70 disabled:cursor-not-allowed mt-2"
+            className="w-full bg-red-600 hover:bg-red-700 text-white py-4 rounded-xl font-black text-xs uppercase tracking-widest flex items-center justify-center gap-2 shadow-lg shadow-red-100 active:scale-[0.98] transition-all disabled:opacity-70 disabled:cursor-not-allowed mt-2"
           >
             {loading ? (
               <Loader2 className="w-4 h-4 animate-spin" />
             ) : (
               <>
-                Acessar Painel <ArrowRight className="w-4 h-4" />
+                Acessar Sistema <ArrowRight className="w-4 h-4" />
               </>
             )}
           </button>
@@ -176,7 +179,7 @@ const Login: React.FC<{ onLogin: (user: User) => void }> = () => {
 
         <div className="mt-8 pt-6 border-t border-slate-100 flex items-center justify-center gap-2 text-slate-400">
            <ShieldCheck className="w-4 h-4" />
-           <span className="text-[10px] uppercase font-bold tracking-widest">Ambiente Seguro</span>
+           <span className="text-[10px] uppercase font-bold tracking-widest">Ambiente B2B Seguro</span>
         </div>
       </div>
     </div>

@@ -257,86 +257,99 @@ const ProductList: React.FC<ProductListProps> = ({ products }) => {
       {(showAddModal || editingProduct) && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 backdrop-blur-sm bg-slate-900/10">
           <div className="absolute inset-0" onClick={() => !loading && resetForm()} />
-          <div className="relative bg-white w-full max-w-md rounded-[48px] shadow-2xl border border-slate-200 overflow-hidden animate-in zoom-in-95">
-            <div className="p-8 bg-slate-50 border-b flex items-center justify-between">
+          
+          <div className="relative bg-white w-full max-w-[95%] sm:max-w-lg md:max-w-xl lg:max-w-md rounded-[24px] sm:rounded-[32px] shadow-2xl border border-slate-200 flex flex-col max-h-[95vh] overflow-hidden animate-in zoom-in-95">
+            
+            {/* Cabeçalho Compacto do Modal */}
+            <div className="p-4 sm:p-5 bg-slate-50 border-b flex items-center justify-between shrink-0">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-white border border-slate-200 rounded-2xl flex items-center justify-center text-slate-800 shadow-sm">
-                  <Settings2 className="w-5 h-5" />
+                <div className="w-9 h-9 bg-white border border-slate-200 rounded-xl flex items-center justify-center text-slate-800 shadow-sm">
+                  <Settings2 className="w-4 h-4" />
                 </div>
-                <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest">{editingProduct ? 'Configuração do Item' : 'Novo Cadastro'}</h3>
+                <h3 className="text-xs font-black text-slate-800 uppercase tracking-widest">
+                  {editingProduct ? 'Configuração' : 'Novo Item'}
+                </h3>
               </div>
-              <button onClick={() => !loading && resetForm()} className="p-2 text-slate-300 hover:text-red-600"><X className="w-6 h-6" /></button>
+              <button onClick={() => !loading && resetForm()} className="p-2 text-slate-300 hover:text-red-600 transition-colors">
+                <X className="w-5 h-5" />
+              </button>
             </div>
             
-            <form onSubmit={handleSaveProduct} className="p-8 space-y-6">
-              {/* Toggle de Visibilidade no Form */}
-              <div className="flex items-center justify-between p-4 bg-slate-50 rounded-3xl border border-slate-100">
-                <div className="flex items-center gap-3">
-                   {formData.active ? <Eye className="w-5 h-5 text-emerald-500" /> : <EyeOff className="w-5 h-5 text-slate-300" />}
-                   <div>
-                     <p className="text-[10px] font-black text-slate-800 uppercase tracking-widest">Exibir no Catálogo</p>
-                     <p className="text-[9px] text-slate-400 font-bold uppercase tracking-widest mt-0.5">{formData.active ? 'Visível para todos os clientes' : 'Oculto temporariamente'}</p>
-                   </div>
-                </div>
-                <button 
-                  type="button"
-                  onClick={() => setFormData(prev => ({ ...prev, active: !prev.active }))}
-                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ${formData.active ? 'bg-emerald-500' : 'bg-slate-300'}`}
-                >
-                  <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${formData.active ? 'translate-x-6' : 'translate-x-1'}`} />
-                </button>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-1.5">
-                  <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1">Código do Produto</label>
-                  <input type="text" required placeholder="Ex: 1001" className="w-full px-5 py-3.5 bg-slate-50 border border-slate-100 rounded-2xl outline-none font-black text-xs text-slate-700" value={formData.code} onChange={(e) => setFormData({ ...formData, code: e.target.value })} />
-                </div>
-                <div className="space-y-1.5">
-                  <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1">Categoria/Grupo</label>
-                  <input type="text" required placeholder="Ex: Bebidas" className="w-full px-5 py-3.5 bg-slate-50 border border-slate-100 rounded-2xl outline-none font-black text-xs text-slate-700" value={formData.group} onChange={(e) => setFormData({ ...formData, group: e.target.value })} />
-                </div>
-              </div>
-
-              <div className="space-y-1.5">
-                <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1">Descrição Comercial</label>
-                <textarea required rows={2} placeholder="Nome do produto como aparecerá na lista" className="w-full px-5 py-3.5 bg-slate-50 border border-slate-100 rounded-2xl outline-none font-black text-xs text-slate-700 resize-none" value={formData.description} onChange={(e) => setFormData({ ...formData, description: e.target.value })} />
-              </div>
-              
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Mídia do Produto</label>
-                  <button type="button" onClick={handleMagicImageSearch} className="flex items-center gap-2 px-4 py-2 bg-slate-900 text-[9px] font-black text-white uppercase rounded-xl shadow-lg hover:bg-black transition-all">
-                    {searchingImage ? <Loader2 className="w-3 h-3 animate-spin" /> : <Sparkles className="w-3 h-3 text-red-500" />} Buscar Foto IA
+            {/* Área de Formulário com Espaçamento Reduzido */}
+            <div className="flex-1 overflow-y-auto p-5 sm:p-6 scrollbar-hide">
+              <form onSubmit={handleSaveProduct} className="space-y-3.5">
+                
+                {/* Toggle de Visibilidade Compacto */}
+                <div className="flex items-center justify-between p-3 bg-white rounded-2xl border border-slate-100 shadow-sm">
+                  <div className="flex items-center gap-3">
+                    {formData.active ? <Eye className="w-4 h-4 text-emerald-500" /> : <EyeOff className="w-4 h-4 text-slate-300" />}
+                    <div>
+                      <p className="text-[9px] font-black text-slate-800 uppercase tracking-widest">Visível no Catálogo</p>
+                      <p className="text-[8px] text-slate-400 font-bold uppercase tracking-widest mt-0.5">
+                        {formData.active ? 'Público' : 'Rascunho/Oculto'}
+                      </p>
+                    </div>
+                  </div>
+                  <button 
+                    type="button"
+                    onClick={() => setFormData(prev => ({ ...prev, active: !prev.active }))}
+                    className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors focus:outline-none ${formData.active ? 'bg-emerald-500' : 'bg-slate-300'}`}
+                  >
+                    <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform ${formData.active ? 'translate-x-4.5' : 'translate-x-1'}`} />
                   </button>
                 </div>
-                <div className="aspect-video bg-slate-50 border border-slate-100 rounded-[32px] flex items-center justify-center overflow-hidden shadow-inner group relative">
-                  {formData.imageUrl ? <img src={formData.imageUrl} className="w-full h-full object-cover" /> : <ImageIcon className="w-12 h-12 text-slate-200" />}
-                  <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors flex items-center justify-center">
-                     <p className="text-[8px] font-black text-white opacity-0 group-hover:opacity-100 uppercase tracking-[0.3em]">Preview de Imagem</p>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <label className="text-[8px] font-black text-slate-400 uppercase tracking-widest ml-1">Código</label>
+                    <input type="text" required placeholder="Ex: 1001" className="w-full px-4 py-2.5 bg-slate-50 border border-slate-100 rounded-xl outline-none font-black text-xs text-slate-700 focus:bg-white transition-all shadow-sm" value={formData.code} onChange={(e) => setFormData({ ...formData, code: e.target.value })} />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[8px] font-black text-slate-400 uppercase tracking-widest ml-1">Categoria</label>
+                    <input type="text" required placeholder="Ex: Bebidas" className="w-full px-4 py-2.5 bg-slate-50 border border-slate-100 rounded-xl outline-none font-black text-xs text-slate-700 focus:bg-white transition-all shadow-sm" value={formData.group} onChange={(e) => setFormData({ ...formData, group: e.target.value })} />
                   </div>
                 </div>
-                <input type="url" placeholder="Ou cole o link da imagem aqui..." className="w-full px-5 py-3.5 bg-slate-50 border border-slate-100 rounded-2xl outline-none font-bold text-xs text-slate-500 italic" value={formData.imageUrl} onChange={(e) => setFormData({ ...formData, imageUrl: e.target.value })} />
-              </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-1.5">
-                  <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1">Preço R$ (Venda)</label>
-                  <input type="text" required placeholder="0,00" className="w-full px-5 py-3.5 bg-slate-50 border border-slate-100 rounded-2xl outline-none font-black text-xs text-slate-800" value={formData.price} onChange={(e) => setFormData({ ...formData, price: e.target.value })} />
+                <div className="space-y-1">
+                  <label className="text-[8px] font-black text-slate-400 uppercase tracking-widest ml-1">Descrição Comercial</label>
+                  <textarea required rows={2} placeholder="Nome do produto" className="w-full px-4 py-2.5 bg-slate-50 border border-slate-100 rounded-xl outline-none font-black text-xs text-slate-700 resize-none focus:bg-white transition-all shadow-sm" value={formData.description} onChange={(e) => setFormData({ ...formData, description: e.target.value })} />
                 </div>
-                <div className="space-y-1.5">
-                  <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1">Preço Promoção (Opcional)</label>
-                  <input type="text" placeholder="Oferta" className="w-full px-5 py-3.5 bg-red-50/30 border border-red-100 rounded-2xl outline-none font-black text-xs text-red-600 placeholder:text-red-200" value={formData.salePrice} onChange={(e) => setFormData({ ...formData, salePrice: e.target.value, onSale: !!e.target.value })} />
+                
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between px-1">
+                    <label className="text-[8px] font-black text-slate-400 uppercase tracking-widest">Mídia do Produto</label>
+                    <button type="button" onClick={handleMagicImageSearch} className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-900 text-[8px] font-black text-white uppercase rounded-lg shadow-md hover:bg-black transition-all">
+                      {searchingImage ? <Loader2 className="w-3 h-3 animate-spin" /> : <Sparkles className="w-2.5 h-2.5 text-red-500" />} IA Buscar
+                    </button>
+                  </div>
+                  <div className="aspect-[16/9] bg-slate-50 border border-slate-100 rounded-2xl flex items-center justify-center overflow-hidden shadow-inner group relative">
+                    {formData.imageUrl ? <img src={formData.imageUrl} className="w-full h-full object-cover" /> : <ImageIcon className="w-8 h-8 text-slate-200" />}
+                    <div className="absolute inset-0 bg-black/0 group-hover:bg-black/5 transition-colors" />
+                  </div>
+                  <input type="url" placeholder="Link da imagem..." className="w-full px-4 py-2 bg-slate-50 border border-slate-100 rounded-xl outline-none font-bold text-[10px] text-slate-400 italic focus:bg-white transition-all shadow-sm" value={formData.imageUrl} onChange={(e) => setFormData({ ...formData, imageUrl: e.target.value })} />
                 </div>
-              </div>
 
-              <div className="pt-4 flex gap-3">
-                <button type="button" onClick={() => resetForm()} className="flex-1 py-4.5 bg-slate-100 text-slate-500 font-black rounded-3xl text-[10px] uppercase tracking-widest hover:bg-slate-200 transition-all">Cancelar</button>
-                <button type="submit" disabled={loading} className="flex-[2] py-4.5 bg-red-600 text-white font-black rounded-3xl text-[10px] uppercase tracking-widest shadow-2xl shadow-red-200 hover:bg-red-700 transition-all active:scale-95 flex items-center justify-center gap-3">
-                  {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : <>Salvar Alterações <Check className="w-4 h-4" /></>}
-                </button>
-              </div>
-            </form>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <label className="text-[8px] font-black text-slate-400 uppercase tracking-widest ml-1">Preço R$ (Venda)</label>
+                    <input type="text" required placeholder="0,00" className="w-full px-4 py-2.5 bg-slate-50 border border-slate-100 rounded-xl outline-none font-black text-xs text-slate-800 focus:bg-white transition-all shadow-sm" value={formData.price} onChange={(e) => setFormData({ ...formData, price: e.target.value })} />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[8px] font-black text-slate-400 uppercase tracking-widest ml-1">Oferta (Opcional)</label>
+                    <input type="text" placeholder="R$ 0,00" className="w-full px-4 py-2.5 bg-red-50/20 border border-red-50 rounded-xl outline-none font-black text-xs text-red-600 placeholder:text-red-200 focus:bg-white transition-all shadow-sm" value={formData.salePrice} onChange={(e) => setFormData({ ...formData, salePrice: e.target.value, onSale: !!e.target.value })} />
+                  </div>
+                </div>
+
+                <div className="pt-4 flex flex-col sm:flex-row gap-2">
+                  <button type="button" onClick={() => resetForm()} className="flex-1 py-3 bg-slate-100 text-slate-500 font-black rounded-2xl text-[9px] uppercase tracking-widest hover:bg-slate-200 transition-all">
+                    Descartar
+                  </button>
+                  <button type="submit" disabled={loading} className="flex-[2] py-3 bg-red-600 text-white font-black rounded-2xl text-[9px] uppercase tracking-widest shadow-xl shadow-red-100 hover:bg-red-700 transition-all active:scale-95 flex items-center justify-center gap-2">
+                    {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <>Salvar Produto <Check className="w-3.5 h-3.5" /></>}
+                  </button>
+                </div>
+              </form>
+            </div>
           </div>
         </div>
       )}
