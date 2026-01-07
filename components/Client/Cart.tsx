@@ -16,7 +16,8 @@ import {
   Edit3,
   ArrowRight,
   ChevronRight,
-  Sparkles
+  Sparkles,
+  Info
 } from 'lucide-react';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -156,7 +157,6 @@ const Cart: React.FC<CartProps> = ({
         }))
       };
       
-      // CRITICAL: Use setDoc with the orderId to ensure document path matches order.id
       await setDoc(doc(db, 'orders', orderId), newOrder);
       
       setLastOrder(newOrder);
@@ -202,7 +202,6 @@ const Cart: React.FC<CartProps> = ({
   return (
     <div className="flex flex-col bg-slate-50 relative">
       
-      {/* Header Fixo (Sticky) de Conferência */}
       <div className="bg-white px-6 py-5 sticky top-0 z-30 flex justify-between items-center border-b border-slate-200 shadow-sm transition-shadow">
         <div>
           <h2 className="text-sm font-black text-slate-900 uppercase tracking-widest">Conferência</h2>
@@ -215,8 +214,6 @@ const Cart: React.FC<CartProps> = ({
       </div>
 
       <div className="p-3 space-y-1.5 pb-32">
-        
-        {/* Seção de Vendedora */}
         {!lastOrder && (
           <div className="mb-2 animate-in fade-in duration-500">
             <div className="bg-white p-4 rounded-none border border-slate-100 shadow-sm">
@@ -350,8 +347,14 @@ const Cart: React.FC<CartProps> = ({
                 <div className="w-14 h-14 bg-emerald-50 text-emerald-500 rounded-none flex items-center justify-center mx-auto mb-4 shadow-inner">
                   <CheckCircle2 className="w-8 h-8" />
                 </div>
-                <h3 className="text-xs font-black text-slate-900 uppercase tracking-widest text-center">Pedido Gerado com Sucesso</h3>
-                <p className="text-[10px] text-slate-400 font-bold uppercase mt-2 tracking-widest text-center">ID: #{lastOrder.id}</p>
+                <h3 className="text-xs font-black text-slate-900 uppercase tracking-widest text-center">Pedido Enviado com Sucesso!</h3>
+                <p className="text-[10px] text-slate-500 font-bold uppercase mt-2 tracking-widest text-center px-4 leading-relaxed">
+                  Em breve seu pedido será faturado por nossa equipe de logística.
+                </p>
+                <div className="mt-4 inline-flex items-center gap-2 bg-blue-50 px-4 py-2 rounded-xl text-blue-600">
+                  <Info className="w-3.5 h-3.5" />
+                  <span className="text-[9px] font-black uppercase tracking-widest">ID: #{lastOrder.id}</span>
+                </div>
               </div>
               
               <div className="grid grid-cols-2 gap-4">

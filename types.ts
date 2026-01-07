@@ -74,10 +74,11 @@ export interface AppNotification {
   id: string;
   title: string;
   message: string;
-  type: 'order_received' | 'order_cancelled' | 'info';
+  type: 'order_received' | 'order_cancelled' | 'info' | 'order_status';
   read: boolean;
   createdAt: string;
   orderId?: string;
+  recipientId?: string; // ID do usuário que deve receber a notificação
 }
 
 export interface CartItem extends Product {

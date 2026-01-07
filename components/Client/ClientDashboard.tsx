@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { ClientData, Product, Order, CartItem, OrderStatus, Seller } from '../../types';
+import { ClientData, Product, Order, CartItem, OrderStatus, Seller, AppNotification } from '../../types';
 import { 
   ShoppingCart, 
   List, 
@@ -22,14 +22,15 @@ import {
   Eye, 
   EyeOff, 
   Loader2,
-  ShoppingBag
+  ShoppingBag,
+  CheckCircle2
 } from 'lucide-react';
 import Catalog from './Catalog';
 import Cart from './Cart';
 import OrderHistory from './OrderHistory';
 import { auth, db } from '../../firebaseConfig';
 import { updatePassword } from 'firebase/auth';
-import { doc, updateDoc } from 'firebase/firestore';
+import { doc, updateDoc, collection, query, where, orderBy, onSnapshot, limit, deleteDoc } from 'firebase/firestore';
 
 interface ClientDashboardProps {
   user: ClientData;
@@ -48,12 +49,30 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({
   const [activeTab, setActiveTab] = useState<TabType>('catalog');
   const [cart, setCart] = useState<CartItem[]>([]);
   const [showNotifications, setShowNotifications] = useState(false);
+  const [notifications, setNotifications] = useState<AppNotification[]>([]);
   const [showSideMenu, setShowSideMenu] = useState(false);
   const [showPasswordModal, setShowPasswordModal] = useState(false);
   
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
   const [showInstallBanner, setShowInstallBanner] = useState(false);
   const [isIos, setIsIos] = useState(false);
+
+  useEffect(() => {
+    // Listener de Notificações para o Cliente
+    const q = query(
+      collection(db, 'notifications'), 
+      where('recipientId', '==', user.id),
+      orderBy('createdAt', 'desc'), 
+      limit(20)
+    );
+    
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const notifs = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as AppNotification));
+      setNotifications(notifs);
+    }, (err) => console.error("Erro Notificações Cliente:", err));
+
+    return () => unsubscribe();
+  }, [user.id]);
 
   useEffect(() => {
     const isStandalone = window.matchMedia('(display-mode: standalone)').matches || (window.navigator as any).standalone;
@@ -77,6 +96,16 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({
       if (outcome === 'accepted') setShowInstallBanner(false);
       setDeferredPrompt(null);
     }
+  };
+
+  const markNotifRead = async (id: string) => {
+    await updateDoc(doc(db, 'notifications', id), { read: true });
+  };
+
+  const clearNotifs = async () => {
+    notifications.forEach(async (n) => {
+      await deleteDoc(doc(db, 'notifications', n.id));
+    });
   };
 
   const addToCart = (product: Product, quantity: number) => {
@@ -114,13 +143,14 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({
   };
 
   const cartCount = cart.reduce((sum, item) => sum + item.quantity, 0);
+  const unreadNotifCount = notifications.filter(n => !n.read).length;
   const clientOrders = orders.filter(o => o.clientId === user.id);
   const promoItems = products.filter(p => p.onSale && p.active);
 
   const isImmersive = activeTab === 'catalog' || activeTab === 'cart';
 
   return (
-    <div className="flex flex-col min-h-screen bg-white font-sans text-slate-800 overflow-hidden">
+    <div className="flex flex-col min-h-screen bg-white font-sans text-slate-800 overflow-hidden relative">
       
       {showInstallBanner && (
         <div className="fixed top-0 inset-x-0 z-[60] animate-in slide-in-from-top duration-500">
@@ -158,10 +188,46 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({
             </div>
 
             <div className="flex items-center gap-1.5 sm:gap-3">
-              <button onClick={() => setShowNotifications(!showNotifications)} className="p-2 text-slate-400 hover:text-red-500 relative">
-                <Bell className="w-5 h-5" />
-                {promoItems.length > 0 && <span className="absolute top-2 right-2 w-2 h-2 bg-red-600 rounded-full border-2 border-white animate-pulse" />}
-              </button>
+              <div className="relative">
+                <button onClick={() => setShowNotifications(!showNotifications)} className={`p-2 transition-all relative ${showNotifications ? 'text-red-600' : 'text-slate-400 hover:text-red-500'}`}>
+                  <Bell className="w-5 h-5" />
+                  {unreadNotifCount > 0 && <span className="absolute top-2 right-2 w-4 h-4 bg-red-600 text-white text-[8px] font-black rounded-full border-2 border-white flex items-center justify-center animate-bounce shadow-sm">{unreadNotifCount}</span>}
+                </button>
+
+                {showNotifications && (
+                  <div className="absolute top-12 right-0 w-80 bg-white border border-slate-200 shadow-2xl rounded-3xl z-50 overflow-hidden animate-in zoom-in-95 duration-200">
+                    <div className="p-4 border-b border-slate-100 flex items-center justify-between bg-slate-50">
+                      <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-800">Meus Alertas</h4>
+                      <button onClick={clearNotifs} className="text-[9px] font-black text-red-600 uppercase hover:underline">Limpar</button>
+                    </div>
+                    <div className="max-h-96 overflow-y-auto scrollbar-hide">
+                      {notifications.length > 0 ? (
+                        notifications.map(n => (
+                          <div 
+                            key={n.id} 
+                            onClick={() => { markNotifRead(n.id); setActiveTab('history'); setShowNotifications(false); }}
+                            className={`p-4 border-b border-slate-50 cursor-pointer transition-colors flex gap-4 ${n.read ? 'opacity-50' : 'bg-red-50/20'}`}
+                          >
+                            <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${n.type === 'order_cancelled' ? 'bg-red-100 text-red-600' : 'bg-blue-100 text-blue-600'}`}>
+                              <Bell className="w-4 h-4" />
+                            </div>
+                            <div>
+                              <p className="text-[10px] font-black text-slate-800 uppercase leading-tight">{n.title}</p>
+                              <p className="text-[10px] text-slate-500 font-medium mt-1 leading-relaxed">{n.message}</p>
+                              <p className="text-[8px] text-slate-400 font-bold uppercase mt-2">{new Date(n.createdAt).toLocaleTimeString()}</p>
+                            </div>
+                          </div>
+                        ))
+                      ) : (
+                        <div className="p-10 text-center">
+                          <CheckCircle2 className="w-8 h-8 text-slate-200 mx-auto mb-3" />
+                          <p className="text-[10px] font-black text-slate-400 uppercase">Tudo em ordem!</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
 
               <button onClick={() => setActiveTab('cart')} className={`p-2 transition-colors relative ${activeTab === 'cart' ? 'text-red-600' : 'text-slate-400 hover:text-red-600'}`}>
                 <ShoppingCart className="w-5 h-5" />
@@ -242,6 +308,19 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({
           )}
         </div>
       </main>
+
+      {/* Botão de Carrinho Flutuante (FAB) */}
+      {cartCount > 0 && activeTab !== 'cart' && (
+        <button
+          onClick={() => setActiveTab('cart')}
+          className="fixed bottom-6 right-6 z-50 w-16 h-16 bg-red-600 text-white rounded-full shadow-2xl flex items-center justify-center animate-in zoom-in slide-in-from-bottom-10 duration-300 hover:scale-110 active:scale-95 transition-transform group"
+        >
+          <ShoppingCart className="w-7 h-7" />
+          <span className="absolute -top-1 -right-1 bg-slate-900 text-white text-[10px] font-black min-w-[22px] h-[22px] px-1 rounded-full flex items-center justify-center border-2 border-white shadow-lg animate-bounce" key={cartCount}>
+            {cartCount}
+          </span>
+        </button>
+      )}
 
       {showPasswordModal && <ChangePasswordModal onClose={() => setShowPasswordModal(false)} />}
     </div>

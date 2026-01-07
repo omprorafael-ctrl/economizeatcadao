@@ -115,32 +115,57 @@ const SellerDashboard: React.FC<SellerDashboardProps> = ({ user, orders, clients
     setUpdatingId(id);
     try {
       const orderRef = doc(db, 'orders', id);
+      const targetOrder = orders.find(o => o.id === id);
+      if (!targetOrder) return;
+
       const now = new Date().toISOString();
       const updateData: any = { status: newStatus };
       
       if (reason) updateData.cancelReason = reason;
 
+      // NOTIFICAÇÕES PARA O CLIENTE
       if (newStatus === OrderStatus.IN_PROGRESS) {
         updateData.receivedAt = now;
         await addDoc(collection(db, 'notifications'), {
           title: 'Pedido Recebido',
-          message: `${user.name} iniciou o lançamento do pedido #${id}`,
-          type: 'order_received',
+          message: `O vendedor ${user.name} iniciou o processamento do seu pedido #${id}`,
+          type: 'order_status',
           read: false,
           createdAt: now,
-          orderId: id
+          orderId: id,
+          recipientId: targetOrder.clientId
         });
       } else if (newStatus === OrderStatus.SENT) {
         await addDoc(collection(db, 'notifications'), {
-          title: 'Pedido Enviado',
-          message: `O vendedor ${user.name} despachou o pedido #${id}`,
-          type: 'info',
+          title: 'Rota de Entrega',
+          message: `Excelente notícia! Seu pedido #${id} já saiu para entrega.`,
+          type: 'order_status',
           read: false,
           createdAt: now,
-          orderId: id
+          orderId: id,
+          recipientId: targetOrder.clientId
         });
       } else if (newStatus === OrderStatus.INVOICED) {
         updateData.invoicedAt = now;
+        await addDoc(collection(db, 'notifications'), {
+          title: 'Pedido Faturado',
+          message: `Seu pedido #${id} acaba de ser faturado. Preparando para o envio!`,
+          type: 'order_status',
+          read: false,
+          createdAt: now,
+          orderId: id,
+          recipientId: targetOrder.clientId
+        });
+      } else if (newStatus === OrderStatus.CANCELLED) {
+        await addDoc(collection(db, 'notifications'), {
+          title: 'Pedido Cancelado',
+          message: `O pedido #${id} foi cancelado. Motivo: ${reason}`,
+          type: 'order_cancelled',
+          read: false,
+          createdAt: now,
+          orderId: id,
+          recipientId: targetOrder.clientId
+        });
       }
 
       await updateDoc(orderRef, updateData);
