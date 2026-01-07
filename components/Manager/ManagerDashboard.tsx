@@ -134,7 +134,7 @@ const ManagerDashboard: React.FC<ManagerDashboardProps> = ({
             </h1>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-1.5 sm:gap-3">
              <div className="relative">
                 <button 
                   onClick={() => setShowNotifications(!showNotifications)}
@@ -191,6 +191,14 @@ const ManagerDashboard: React.FC<ManagerDashboardProps> = ({
              <button className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-all">
                <Settings className="w-4 h-4" />
              </button>
+
+             <button 
+               onClick={onLogout}
+               className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all lg:hidden"
+               title="Sair"
+             >
+               <LogOut className="w-4 h-4" />
+             </button>
           </div>
         </header>
 
@@ -227,6 +235,13 @@ const ManagerDashboard: React.FC<ManagerDashboardProps> = ({
               <span className="text-[8px] font-black uppercase tracking-tighter">{item.label}</span>
             </button>
           ))}
+          <button 
+            onClick={onLogout}
+            className="flex flex-col items-center p-2 rounded-xl transition-all min-w-[50px] text-slate-300 hover:text-red-600"
+          >
+            <LogOut className="w-5 h-5 mb-1 stroke-2" />
+            <span className="text-[8px] font-black uppercase tracking-tighter">Sair</span>
+          </button>
         </div>
       </main>
     </div>
