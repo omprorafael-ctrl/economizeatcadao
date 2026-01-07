@@ -1,13 +1,16 @@
 
-import React from 'react';
+import React, { useState } from 'react';
 import { Order, OrderStatus } from '../../types';
 import { Clock, CheckCircle, Truck, Package, ChevronRight, Calendar, Activity, Ban, FileText, CheckCircle2 } from 'lucide-react';
+import FiscalCoupon from '../Shared/FiscalCoupon';
 
 interface OrderHistoryProps {
   orders: Order[];
 }
 
 const OrderHistory: React.FC<OrderHistoryProps> = ({ orders }) => {
+  const [selectedCoupon, setSelectedCoupon] = useState<Order | null>(null);
+
   const getStatusInfo = (status: OrderStatus) => {
     switch (status) {
       case OrderStatus.GENERATED: 
@@ -84,7 +87,7 @@ const OrderHistory: React.FC<OrderHistoryProps> = ({ orders }) => {
   }
 
   return (
-    <div className="p-4 space-y-4 animate-in fade-in duration-500 bg-slate-50 min-h-full">
+    <div className="p-4 space-y-4 animate-in fade-in duration-500 bg-slate-50 min-h-full relative">
       <div className="flex items-end justify-between px-2 mb-2">
         <h2 className="text-lg font-black text-slate-800 uppercase tracking-tighter">Histórico de Compras</h2>
         <span className="text-[9px] font-black text-slate-500 bg-white px-3 py-1.5 rounded-xl border border-slate-200 uppercase tracking-widest">
@@ -95,6 +98,8 @@ const OrderHistory: React.FC<OrderHistoryProps> = ({ orders }) => {
       <div className="space-y-4">
         {orders.map(order => {
           const status = getStatusInfo(order.status);
+          const canViewCoupon = order.status === OrderStatus.INVOICED || order.status === OrderStatus.SENT || order.status === OrderStatus.FINISHED;
+          
           return (
             <div key={order.id} className="bg-white rounded-[24px] p-6 border border-slate-200 shadow-sm flex flex-col transition-all hover:border-red-200 group">
               <div className="flex items-start justify-between mb-4">
@@ -130,14 +135,24 @@ const OrderHistory: React.FC<OrderHistoryProps> = ({ orders }) => {
                     Status: <span className={status.color}>{status.label}</span>
                   </span>
                 </div>
-                <button className="text-red-600 text-[9px] font-black uppercase tracking-widest hover:text-red-700 flex items-center gap-1.5 px-3 py-1.5 bg-red-50 rounded-xl transition-all">
-                  Ver Cupom <ChevronRight className="w-3.5 h-3.5" />
-                </button>
+                
+                {canViewCoupon && (
+                  <button 
+                    onClick={() => setSelectedCoupon(order)}
+                    className="text-red-600 text-[9px] font-black uppercase tracking-widest hover:text-red-700 flex items-center gap-1.5 px-3 py-1.5 bg-red-50 rounded-xl transition-all"
+                  >
+                    Ver Cupom <ChevronRight className="w-3.5 h-3.5" />
+                  </button>
+                )}
               </div>
             </div>
           );
         })}
       </div>
+
+      {selectedCoupon && (
+        <FiscalCoupon order={selectedCoupon} onClose={() => setSelectedCoupon(null)} />
+      )}
     </div>
   );
 };

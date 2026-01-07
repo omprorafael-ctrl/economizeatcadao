@@ -27,12 +27,14 @@ import {
   Key,
   ClipboardCheck,
   UserCircle,
-  Send
+  Send,
+  ChevronRight
 } from 'lucide-react';
 import { db, auth } from '../../firebaseConfig';
 import { doc, updateDoc, collection, addDoc } from 'firebase/firestore';
 import { updatePassword } from 'firebase/auth';
 import { can, PermissionAction } from '../../utils/permissions';
+import FiscalCoupon from '../Shared/FiscalCoupon';
 
 interface SellerDashboardProps {
   user: Seller;
@@ -43,6 +45,7 @@ interface SellerDashboardProps {
 
 const SellerDashboard: React.FC<SellerDashboardProps> = ({ user, orders, clients, onLogout }) => {
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
+  const [selectedCoupon, setSelectedCoupon] = useState<Order | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [activeTab, setActiveTab] = useState<'portfolio' | 'history' | 'clients' | 'profile'>('portfolio');
   const [updatingId, setUpdatingId] = useState<string | null>(null);
@@ -276,6 +279,8 @@ const SellerDashboard: React.FC<SellerDashboardProps> = ({ user, orders, clients
               {displayedOrders.map(order => {
                 const status = statusMap[order.status] || statusMap[OrderStatus.GENERATED];
                 const isUpdating = updatingId === order.id;
+                const canViewCoupon = order.status === OrderStatus.INVOICED || order.status === OrderStatus.SENT || order.status === OrderStatus.FINISHED;
+
                 return (
                   <div key={order.id} className="bg-white rounded-[32px] border border-slate-100 p-6 flex flex-col lg:flex-row lg:items-center justify-between gap-6 hover:shadow-lg transition-all">
                     <div className="flex items-center gap-5">
@@ -296,7 +301,7 @@ const SellerDashboard: React.FC<SellerDashboardProps> = ({ user, orders, clients
                       </div>
                       <div className="flex gap-2">
                         <button onClick={() => setSelectedOrder(order)} className="p-3 bg-slate-50 text-slate-400 hover:text-slate-900 rounded-xl border border-slate-100"><Eye className="w-5 h-5" /></button>
-                        {activeTab === 'portfolio' && (
+                        {activeTab === 'portfolio' ? (
                           <div className="flex items-center gap-1.5 bg-slate-50/50 p-1 rounded-2xl border border-slate-100">
                              {order.status === OrderStatus.GENERATED && (
                                <ActionBtn disabled={isUpdating} onClick={() => executeUpdate(order.id, OrderStatus.IN_PROGRESS)} label="Lançar" icon={ClipboardCheck} color="text-amber-600 bg-amber-50" />
@@ -307,6 +312,15 @@ const SellerDashboard: React.FC<SellerDashboardProps> = ({ user, orders, clients
                              <ActionBtn disabled={isUpdating} onClick={() => handleRequestAction(order.id, 'INVOICE')} label="Faturar" icon={Check} color="text-emerald-600 bg-emerald-50" />
                              <ActionBtn disabled={isUpdating} onClick={() => handleRequestAction(order.id, 'CANCEL')} label="Cancelar" icon={Ban} color="text-red-600 bg-red-50" />
                           </div>
+                        ) : (
+                          canViewCoupon && (
+                            <button 
+                              onClick={() => setSelectedCoupon(order)}
+                              className="text-red-600 text-[9px] font-black uppercase tracking-widest hover:text-red-700 flex items-center gap-1.5 px-4 py-2 bg-red-50 rounded-xl transition-all border border-red-100"
+                            >
+                              Ver Cupom <ChevronRight className="w-3.5 h-3.5 ml-1" />
+                            </button>
+                          )
                         )}
                       </div>
                     </div>
@@ -403,6 +417,10 @@ const SellerDashboard: React.FC<SellerDashboardProps> = ({ user, orders, clients
         </div>
       )}
 
+      {selectedCoupon && (
+        <FiscalCoupon order={selectedCoupon} onClose={() => setSelectedCoupon(null)} />
+      )}
+
       {showPasswordModal && <ChangePasswordModal onClose={() => setShowPasswordModal(false)} />}
     </div>
   );
@@ -457,7 +475,7 @@ const ChangePasswordModal: React.FC<{ onClose: () => void }> = ({ onClose }) => 
 
   return (
     <div className="fixed inset-0 z-[300] flex items-center justify-center p-4 backdrop-blur-md bg-slate-900/60">
-      <div className="relative bg-white w-full max-w-sm rounded-[40px] shadow-2xl p-10 space-y-8 animate-in zoom-in-95">
+      <div className="relative bg-white w-full max-sm rounded-[40px] shadow-2xl p-10 space-y-8 animate-in zoom-in-95">
         <div className="text-center">
            <div className="w-16 h-16 bg-slate-50 border border-slate-100 rounded-3xl flex items-center justify-center mx-auto mb-4"><Key className="w-7 h-7 text-slate-300" /></div>
            <h3 className="text-sm font-black uppercase tracking-widest text-slate-800">Novo Acesso</h3>
