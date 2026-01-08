@@ -40,8 +40,6 @@ const ClientList: React.FC<ClientListProps> = ({ clients }) => {
   const [editingClient, setEditingClient] = useState<ClientData | null>(null);
   const [formData, setFormData] = useState({ 
     name: '', 
-    email: '', 
-    password: '', 
     cpfCnpj: '', 
     phone: '', 
     address: '' 
@@ -53,8 +51,6 @@ const ClientList: React.FC<ClientListProps> = ({ clients }) => {
     setEditingClient(client);
     setFormData({
       name: client.name,
-      email: client.email,
-      password: client.password || '',
       cpfCnpj: client.cpfCnpj || '',
       phone: client.phone || '',
       address: client.address || ''
@@ -63,7 +59,7 @@ const ClientList: React.FC<ClientListProps> = ({ clients }) => {
   };
 
   const resetForm = () => {
-    setFormData({ name: '', email: '', password: '', cpfCnpj: '', phone: '', address: '' });
+    setFormData({ name: '', cpfCnpj: '', phone: '', address: '' });
     setShowModal(false);
     setEditingClient(null);
   };
@@ -72,7 +68,7 @@ const ClientList: React.FC<ClientListProps> = ({ clients }) => {
     e.preventDefault();
     
     if (!isValidCpfCnpj(formData.cpfCnpj)) {
-      alert("O CPF/CNPJ informado é inválido. Por favor, verifique os dígitos.");
+      alert("O CPF/CNPJ informado é inválido.");
       return;
     }
 
@@ -82,16 +78,19 @@ const ClientList: React.FC<ClientListProps> = ({ clients }) => {
       if (editingClient) {
         await updateDoc(doc(db, 'users', editingClient.id), {
           name: formData.name.trim(),
-          email: formData.email.trim(),
-          password: formData.password,
           cpfCnpj: formData.cpfCnpj.trim(),
           phone: formData.phone.trim(),
           address: formData.address.trim()
         });
         resetForm();
       } else {
-        if (formData.password.length < 6) {
-          alert("A senha deve ter no mínimo 6 caracteres.");
+        // Lógica de Geração Automática de Credenciais
+        const firstName = formData.name.trim().split(' ')[0].toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+        const generatedEmail = `${firstName}@economize.com`;
+        const generatedPassword = formData.cpfCnpj.replace(/\D/g, ''); // Senha é o CPF limpo
+
+        if (generatedPassword.length < 6) {
+          alert("O CPF/CNPJ deve ter pelo menos 6 dígitos para servir como senha.");
           setLoading(false);
           return;
         }
@@ -99,14 +98,13 @@ const ClientList: React.FC<ClientListProps> = ({ clients }) => {
         const secondaryApp = initializeApp(firebaseConfig, "ClientCreationApp");
         const secondaryAuth = getAuth(secondaryApp);
         
-        const userCredential = await createUserWithEmailAndPassword(secondaryAuth, formData.email, formData.password);
+        const userCredential = await createUserWithEmailAndPassword(secondaryAuth, generatedEmail, generatedPassword);
         const uid = userCredential.user.uid;
         
         const newClient = { 
           id: uid, 
           name: formData.name.trim(), 
-          email: formData.email.trim(), 
-          password: formData.password,
+          email: generatedEmail, 
           role: UserRole.CLIENT, 
           active: true, 
           createdAt: new Date().toISOString(), 
@@ -119,10 +117,11 @@ const ClientList: React.FC<ClientListProps> = ({ clients }) => {
         await signOut(secondaryAuth);
         await deleteApp(secondaryApp);
         resetForm();
+        alert(`Cliente criado!\nLogin: ${firstName}\nSenha: ${generatedPassword}`);
       }
     } catch (error: any) {
       console.error(error);
-      alert("Falha na operação: " + (error.message || "Erro desconhecido"));
+      alert("Falha na operação: " + (error.code === 'auth/email-already-in-use' ? "Já existe um usuário com este primeiro nome. Adicione um sobrenome." : error.message));
     } finally {
       setLoading(false);
     }
@@ -226,9 +225,6 @@ const ClientList: React.FC<ClientListProps> = ({ clients }) => {
                   <Trash2 className="w-4 h-4" />
                 </button>
               </div>
-              <button className="text-slate-200 hover:text-slate-400">
-                <MoreHorizontal className="w-5 h-5" />
-              </button>
             </div>
           </div>
         ))}
@@ -241,10 +237,10 @@ const ClientList: React.FC<ClientListProps> = ({ clients }) => {
             <div className="p-8 bg-slate-50 border-b border-slate-100 flex items-center justify-between">
               <div>
                 <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest">
-                  {editingClient ? 'Gestão de Acesso Total' : 'Novo Credenciamento'}
+                  {editingClient ? 'Gestão de Cadastro' : 'Novo Credenciamento'}
                 </h3>
                 <p className="text-[9px] text-slate-400 font-bold uppercase tracking-widest mt-1">
-                  {editingClient ? `Editando perfil: ${editingClient.name}` : 'Adicionar parceiro comercial à base'}
+                  Login automático via Primeiro Nome | Senha via CPF
                 </p>
               </div>
               <button onClick={() => !loading && resetForm()} className="p-2 bg-white text-slate-400 hover:text-red-600 rounded-xl border border-slate-100"><X className="w-5 h-5" /></button>
@@ -282,23 +278,6 @@ const ClientList: React.FC<ClientListProps> = ({ clients }) => {
 
               <div className="space-y-4">
                 <div className="flex items-center gap-2 border-b border-slate-100 pb-2">
-                   <Lock className="w-4 h-4 text-red-500" />
-                   <span className="text-[10px] font-black uppercase tracking-widest text-slate-800">Credenciais de Acesso</span>
-                </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                  <div className="space-y-2">
-                    <label className="text-[9px] font-black uppercase text-slate-400 tracking-widest ml-1">E-mail para Login</label>
-                    <input type="email" required disabled={loading} className="w-full px-5 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:bg-white focus:border-red-300 transition-all font-bold text-slate-700 text-xs" value={formData.email} onChange={(e) => setFormData({ ...formData, email: e.target.value })} />
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-[9px] font-black uppercase text-slate-400 tracking-widest ml-1">{editingClient ? 'Redefinir Senha' : 'Senha de Primeiro Acesso'}</label>
-                    <input type="text" required disabled={loading} className="w-full px-5 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:bg-white focus:border-red-300 transition-all font-bold text-slate-700 text-xs" value={formData.password} onChange={(e) => setFormData({ ...formData, password: e.target.value })} />
-                  </div>
-                </div>
-              </div>
-
-              <div className="space-y-4">
-                <div className="flex items-center gap-2 border-b border-slate-100 pb-2">
                    <Phone className="w-4 h-4 text-red-500" />
                    <span className="text-[10px] font-black uppercase tracking-widest text-slate-800">Contato e Logística</span>
                 </div>
@@ -314,12 +293,21 @@ const ClientList: React.FC<ClientListProps> = ({ clients }) => {
                 </div>
               </div>
 
+              {!editingClient && (
+                <div className="p-4 bg-blue-50 border border-blue-100 rounded-2xl flex gap-3 items-center">
+                  <AlertCircle className="w-5 h-5 text-blue-600 shrink-0" />
+                  <p className="text-[9px] font-bold text-blue-800 uppercase tracking-widest">
+                    As credenciais de acesso serão geradas automaticamente e enviadas ao cliente após salvar.
+                  </p>
+                </div>
+              )}
+
               <div className="pt-8 flex gap-4">
                 <button type="button" onClick={() => resetForm()} className="flex-1 py-4 bg-slate-100 text-slate-500 font-black rounded-2xl text-[10px] uppercase tracking-widest hover:bg-slate-200 transition-all">Descartar</button>
                 <button type="submit" disabled={loading || !isDocValid} className="flex-[2] bg-red-600 text-white py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-2xl shadow-red-100 hover:bg-red-700 active:scale-95 transition-all flex items-center justify-center gap-3 disabled:opacity-50">
                   {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : (
                     <>
-                      {editingClient ? 'Salvar Alterações de Acesso' : 'Finalizar Cadastro'} 
+                      {editingClient ? 'Salvar Alterações' : 'Finalizar Cadastro'} 
                       <Check className="w-4 h-4" />
                     </>
                   )}

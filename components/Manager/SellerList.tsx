@@ -17,7 +17,7 @@ const SellerList: React.FC<SellerListProps> = ({ sellers, setSellers }) => {
   const [showModal, setShowModal] = useState(false);
   const [loading, setLoading] = useState(false);
   const [editingSeller, setEditingSeller] = useState<Seller | null>(null);
-  const [formData, setFormData] = useState({ name: '', email: '', password: '', phone: '', cpf: '' });
+  const [formData, setFormData] = useState({ name: '', phone: '', cpf: '' });
 
   const isCpfValid = formData.cpf ? validateCPF(formData.cpf) : true;
 
@@ -25,8 +25,6 @@ const SellerList: React.FC<SellerListProps> = ({ sellers, setSellers }) => {
     setEditingSeller(seller);
     setFormData({
       name: seller.name,
-      email: seller.email,
-      password: '',
       phone: seller.phone,
       cpf: seller.cpf || ''
     });
@@ -34,7 +32,7 @@ const SellerList: React.FC<SellerListProps> = ({ sellers, setSellers }) => {
   };
 
   const resetForm = () => {
-    setFormData({ name: '', email: '', password: '', phone: '', cpf: '' });
+    setFormData({ name: '', phone: '', cpf: '' });
     setShowModal(false);
     setEditingSeller(null);
   };
@@ -64,8 +62,13 @@ const SellerList: React.FC<SellerListProps> = ({ sellers, setSellers }) => {
         });
         resetForm();
       } else {
-        if (formData.password.length < 6) {
-          alert("Senha muito curta.");
+        // Lógica de Geração Automática
+        const firstName = formData.name.trim().split(' ')[0].toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+        const generatedEmail = `${firstName}@economize.com`;
+        const generatedPassword = formData.cpf.replace(/\D/g, '');
+
+        if (generatedPassword.length < 6) {
+          alert("CPF inválido para senha.");
           setLoading(false);
           return;
         }
@@ -73,13 +76,13 @@ const SellerList: React.FC<SellerListProps> = ({ sellers, setSellers }) => {
         const secondaryApp = initializeApp(firebaseConfig, "SellerCreationApp");
         const secondaryAuth = getAuth(secondaryApp);
 
-        const userCredential = await createUserWithEmailAndPassword(secondaryAuth, formData.email, formData.password);
+        const userCredential = await createUserWithEmailAndPassword(secondaryAuth, generatedEmail, generatedPassword);
         const uid = userCredential.user.uid;
         
         const sellerData = { 
           id: uid,
           name: formData.name.trim(), 
-          email: formData.email.trim(),
+          email: generatedEmail,
           role: UserRole.SELLER,
           phone: cleanPhone,
           cpf: formData.cpf.trim(),
@@ -92,6 +95,7 @@ const SellerList: React.FC<SellerListProps> = ({ sellers, setSellers }) => {
         await deleteApp(secondaryApp);
         
         resetForm();
+        alert(`Vendedora criada!\nLogin: ${firstName}\nSenha: ${generatedPassword}`);
       }
     } catch (error: any) {
       console.error(error);
@@ -220,25 +224,6 @@ const SellerList: React.FC<SellerListProps> = ({ sellers, setSellers }) => {
                 )}
               </div>
 
-              {!editingSeller && (
-                <>
-                  <div className="space-y-1.5">
-                    <label className="text-[9px] font-bold text-slate-400 uppercase tracking-widest ml-1">E-mail de Acesso</label>
-                    <div className="relative">
-                      <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300 w-3.5 h-3.5" />
-                      <input type="email" required disabled={loading} className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:bg-white focus:border-red-300 transition-all font-bold text-slate-700 text-xs" placeholder="maria@atacadao.com" value={formData.email} onChange={(e) => setFormData({ ...formData, email: e.target.value })} />
-                    </div>
-                  </div>
-                  <div className="space-y-1.5">
-                    <label className="text-[9px] font-bold text-slate-400 uppercase tracking-widest ml-1">Senha Temporária</label>
-                    <div className="relative">
-                      <Key className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300 w-3.5 h-3.5" />
-                      <input type="password" required disabled={loading} className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:bg-white focus:border-red-300 transition-all font-bold text-slate-700 text-xs" placeholder="Mínimo 6 caracteres" value={formData.password} onChange={(e) => setFormData({ ...formData, password: e.target.value })} />
-                    </div>
-                  </div>
-                </>
-              )}
-
               <div className="space-y-1.5">
                 <label className="text-[9px] font-bold text-slate-400 uppercase tracking-widest ml-1">WhatsApp de Contato</label>
                 <div className="relative">
@@ -246,6 +231,15 @@ const SellerList: React.FC<SellerListProps> = ({ sellers, setSellers }) => {
                   <input type="text" required disabled={loading} className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:bg-white focus:border-red-300 transition-all font-bold text-slate-700 text-xs" placeholder="11999999999" value={formData.phone} onChange={(e) => setFormData({ ...formData, phone: e.target.value })} />
                 </div>
               </div>
+
+              {!editingSeller && (
+                <div className="p-4 bg-emerald-50 border border-emerald-100 rounded-2xl flex gap-3 items-center">
+                  <AlertCircle className="w-5 h-5 text-emerald-600 shrink-0" />
+                  <p className="text-[9px] font-bold text-emerald-800 uppercase tracking-widest">
+                    O acesso será gerado com o primeiro nome e CPF como senha padrão.
+                  </p>
+                </div>
+              )}
 
               <div className="pt-6 flex gap-3">
                 <button type="button" disabled={loading} onClick={() => resetForm()} className="flex-1 py-2.5 bg-slate-100 text-slate-500 font-bold rounded-xl text-[10px] uppercase tracking-widest hover:bg-slate-200">Cancelar</button>

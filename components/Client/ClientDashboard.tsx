@@ -58,7 +58,6 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({
   const [isIos, setIsIos] = useState(false);
 
   useEffect(() => {
-    // Listener de Notificações para o Cliente
     const q = query(
       collection(db, 'notifications'), 
       where('recipientId', '==', user.id),
@@ -145,9 +144,6 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({
   const cartCount = cart.reduce((sum, item) => sum + item.quantity, 0);
   const unreadNotifCount = notifications.filter(n => !n.read).length;
   const clientOrders = orders.filter(o => o.clientId === user.id);
-  const promoItems = products.filter(p => p.onSale && p.active);
-
-  const isImmersive = activeTab === 'catalog' || activeTab === 'cart';
 
   return (
     <div className="flex flex-col min-h-screen bg-white font-sans text-slate-800 overflow-hidden relative">
@@ -174,7 +170,7 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({
         </div>
       )}
 
-      <header className={`bg-white border-b border-slate-50 sticky top-0 z-40 transition-all duration-300 ${isImmersive ? 'py-2' : 'py-3'}`}>
+      <header className={`bg-white border-b border-slate-50 sticky top-0 z-40 transition-all duration-300 ${activeTab === 'catalog' || activeTab === 'cart' ? 'py-2' : 'py-3'}`}>
         <div className="max-w-7xl mx-auto px-5 sm:px-8">
           <div className="flex items-center justify-between gap-4">
             <div className="flex items-center gap-3">
@@ -246,7 +242,6 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({
         </div>
       </header>
 
-      {/* Side Menu */}
       {showSideMenu && (
         <div className="fixed inset-0 z-[100] flex">
           <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-300" onClick={() => setShowSideMenu(false)} />
@@ -292,7 +287,7 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <InfoCard label="Razão Social" value={user.name} />
-                <InfoCard label="Documento B2B" value={user.cpfCnpj} />
+                <InfoCard label="Documento de Cadastro" value={user.cpfCnpj} />
                 <InfoCard label="Fone / WhatsApp" value={user.phone} />
                 <InfoCard label="Endereço de Entrega" value={user.address} />
               </div>
@@ -309,7 +304,6 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({
         </div>
       </main>
 
-      {/* Botão de Carrinho Flutuante (FAB) */}
       {cartCount > 0 && activeTab !== 'cart' && (
         <button
           onClick={() => setActiveTab('cart')}

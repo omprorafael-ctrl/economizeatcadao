@@ -55,7 +55,7 @@ const Cart: React.FC<CartProps> = ({
     doc.text('ATACADÃO', 20, 25);
     doc.setFontSize(10);
     doc.setFont('helvetica', 'normal');
-    doc.text('PORTAL DE LOGÍSTICA B2B', 20, 35);
+    doc.text('PORTAL DE LOGÍSTICA', 20, 35);
     doc.text(`PEDIDO: ${order.id}`, 140, 20);
     doc.text(`DATA: ${new Date().toLocaleString('pt-BR')}`, 140, 28);
     doc.setTextColor(50, 50, 50);
@@ -201,7 +201,6 @@ const Cart: React.FC<CartProps> = ({
 
   return (
     <div className="flex flex-col bg-slate-50 relative">
-      
       <div className="bg-white px-6 py-5 sticky top-0 z-30 flex justify-between items-center border-b border-slate-200 shadow-sm transition-shadow">
         <div>
           <h2 className="text-sm font-black text-slate-900 uppercase tracking-widest">Conferência</h2>
@@ -382,7 +381,6 @@ const Cart: React.FC<CartProps> = ({
           )}
         </div>
       </div>
-
     </div>
   );
 };
