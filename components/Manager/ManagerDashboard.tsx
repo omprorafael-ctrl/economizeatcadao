@@ -9,6 +9,7 @@ import StatsOverview from './StatsOverview';
 import AdminManager from './AdminManager';
 import SellerList from './SellerList';
 import AboutSection from '../Shared/AboutSection';
+import IOSInstallPrompt from '../Shared/IOSInstallPrompt';
 import { collection, onSnapshot, query, orderBy, limit, doc, updateDoc, deleteDoc } from 'firebase/firestore';
 import { db } from '../../firebaseConfig';
 
@@ -67,6 +68,7 @@ const ManagerDashboard: React.FC<ManagerDashboardProps> = ({
 
   return (
     <div className="flex h-screen bg-slate-50 overflow-hidden text-slate-800 flex-col lg:flex-row">
+      <IOSInstallPrompt />
       
       {/* Sidebar Desktop */}
       <aside className="w-72 bg-white border-r border-slate-200 flex flex-col hidden lg:flex shadow-sm z-20">

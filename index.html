@@ -3,7 +3,7 @@
 <html lang="pt-br">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
     <title>Economize Atacadão - Catálogo</title>
     
     <!-- PWA Meta Tags -->
@@ -13,11 +13,17 @@
     <!-- Android/Chrome -->
     <meta name="mobile-web-app-capable" content="yes" />
     
-    <!-- iOS Specific -->
+    <!-- iOS Specific (Essencial para o ícone e modo App) -->
     <meta name="apple-mobile-web-app-capable" content="yes" />
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
     <meta name="apple-mobile-web-app-title" content="Economize" />
+    
+    <!-- Ícone de alta qualidade para iOS -->
     <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/3081/3081840.png" />
+    <link rel="apple-touch-icon" sizes="152x152" href="https://cdn-icons-png.flaticon.com/512/3081/3081840.png" />
+    <link rel="apple-touch-icon" sizes="180x180" href="https://cdn-icons-png.flaticon.com/512/3081/3081840.png" />
+    <link rel="apple-touch-icon" sizes="167x167" href="https://cdn-icons-png.flaticon.com/512/3081/3081840.png" />
+    
     <link rel="icon" type="image/png" href="https://cdn-icons-png.flaticon.com/512/3081/3081840.png" />
     
     <script src="https://cdn.tailwindcss.com"></script>
@@ -42,6 +48,12 @@
       input, textarea {
         -webkit-user-select: text;
         user-select: text;
+      }
+      /* Previne zoom no iOS ao focar em inputs */
+      @media screen and (max-width: 768px) {
+        input, select, textarea {
+          font-size: 16px !important;
+        }
       }
     </style>
   <link rel="stylesheet" href="/index.css">

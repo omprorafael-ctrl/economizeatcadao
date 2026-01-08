@@ -37,6 +37,7 @@ import { updatePassword } from 'firebase/auth';
 import { can, PermissionAction } from '../../utils/permissions';
 import FiscalCoupon from '../Shared/FiscalCoupon';
 import AboutSection from '../Shared/AboutSection';
+import IOSInstallPrompt from '../Shared/IOSInstallPrompt';
 
 interface SellerDashboardProps {
   user: Seller;
@@ -204,6 +205,7 @@ const SellerDashboard: React.FC<SellerDashboardProps> = ({ user, orders, clients
 
   return (
     <div className="flex flex-col h-screen bg-slate-50 overflow-hidden relative">
+      <IOSInstallPrompt />
       <header className="h-20 bg-white border-b border-slate-200 flex items-center justify-between px-6 sm:px-10 shrink-0 z-30 shadow-sm">
         <div className="flex items-center gap-4">
           <div className="w-12 h-12 bg-red-600 rounded-2xl flex items-center justify-center shadow-lg cursor-pointer" onClick={() => setActiveTab('portfolio')}>
