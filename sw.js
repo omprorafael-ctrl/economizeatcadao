@@ -1,10 +1,11 @@
 
-const CACHE_NAME = 'atacadao-v2';
+const CACHE_NAME = 'atacadao-v3';
 const ASSETS_TO_CACHE = [
-  '/',
-  '/index.html',
-  '/manifest.json',
-  '/index.css'
+  './',
+  './index.html',
+  './manifest.json',
+  './index.css',
+  './index.tsx'
 ];
 
 self.addEventListener('install', (event) => {
@@ -32,15 +33,19 @@ self.addEventListener('activate', (event) => {
 });
 
 self.addEventListener('fetch', (event) => {
-  // Ignora chamadas externas ou de API para focar na interface
-  if (event.request.url.startsWith('http')) {
-    event.respondWith(
-      caches.match(event.request).then((response) => {
-        return response || fetch(event.request).catch(() => {
-          // Fallback offline básico
-          return caches.match('/');
-        });
-      })
-    );
-  }
+  // Ignora chamadas que não sejam GET ou que sejam para APIs externas (como Firebase)
+  if (event.request.method !== 'GET') return;
+
+  event.respondWith(
+    caches.match(event.request).then((response) => {
+      // Retorna o cache ou tenta buscar na rede
+      return response || fetch(event.request).catch(() => {
+        // Se for uma navegação (abrir o app), retorna o index.html como fallback
+        if (event.request.mode === 'navigate') {
+          return caches.match('./index.html');
+        }
+        return null;
+      });
+    })
+  );
 });
