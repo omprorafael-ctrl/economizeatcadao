@@ -11,7 +11,10 @@ import {
   AlertCircle,
   BarChart3,
   Award,
-  CalendarDays
+  CalendarDays,
+  Trophy,
+  History,
+  ArrowUpRight
 } from 'lucide-react';
 import { Product, ClientData, Order, OrderStatus, Seller } from '../../types';
 import { 
@@ -32,20 +35,18 @@ interface StatsOverviewProps {
   clients: ClientData[];
   orders: Order[];
   sellers?: Seller[];
+  onNavigate: (tab: 'dashboard' | 'products' | 'clients' | 'orders' | 'admins' | 'sellers') => void;
 }
 
-const StatsOverview: React.FC<StatsOverviewProps> = ({ products, clients, orders, sellers = [] }) => {
-  // Data Atual para filtros mensais
+const StatsOverview: React.FC<StatsOverviewProps> = ({ products, clients, orders, sellers = [], onNavigate }) => {
   const now = new Date();
   const currentMonth = now.getMonth();
   const currentYear = now.getFullYear();
 
-  // Cálculo de estatísticas básicas
-  const totalSales = useMemo(() => orders.reduce((sum, o) => sum + o.total, 0), [orders]);
-  const pendingOrders = orders.filter(o => o.status !== OrderStatus.FINISHED && o.status !== OrderStatus.CANCELLED).length;
+  const totalSales = useMemo(() => orders.reduce((sum, o) => sum + (o.status !== OrderStatus.CANCELLED ? o.total : 0), 0), [orders]);
+  const pendingOrders = orders.filter(o => o.status !== OrderStatus.FINISHED && o.status !== OrderStatus.CANCELLED && o.status !== OrderStatus.INVOICED).length;
   const finishedOrders = orders.filter(o => o.status === OrderStatus.FINISHED || o.status === OrderStatus.INVOICED).length;
 
-  // Processamento de dados para o Gráfico de Vendas (Últimos 6 Meses)
   const salesChartData = useMemo(() => {
     const lastMonths = Array.from({ length: 6 }, (_, i) => {
       const d = new Date();
@@ -70,55 +71,74 @@ const StatsOverview: React.FC<StatsOverviewProps> = ({ products, clients, orders
     return lastMonths.map(m => ({ name: m.label, vendas: dataMap[m.key] }));
   }, [orders]);
 
-  // Processamento de dados para Performance de Vendedoras (APENAS MÊS ATUAL)
   const sellerPerformanceData = useMemo(() => {
     const perf: Record<string, number> = {};
-    
     orders.forEach(order => {
       const orderDate = new Date(order.createdAt);
       const isThisMonth = orderDate.getMonth() === currentMonth && orderDate.getFullYear() === currentYear;
-
       if (isThisMonth && order.sellerName && order.status !== OrderStatus.CANCELLED) {
         perf[order.sellerName] = (perf[order.sellerName] || 0) + order.total;
       }
     });
-
     return Object.entries(perf)
       .map(([name, total]) => ({ name, total }))
       .sort((a, b) => b.total - a.total)
-      .slice(0, 5); // Top 5 do mês
+      .slice(0, 5);
   }, [orders, currentMonth, currentYear]);
+
+  // Ranking de Clientes (Top 5)
+  const clientRanking = useMemo(() => {
+    const ranking: Record<string, { total: number, orders: number }> = {};
+    orders.forEach(order => {
+      if (order.status !== OrderStatus.CANCELLED) {
+        if (!ranking[order.clientName]) {
+          ranking[order.clientName] = { total: 0, orders: 0 };
+        }
+        ranking[order.clientName].total += order.total;
+        ranking[order.clientName].orders += 1;
+      }
+    });
+    return Object.entries(ranking)
+      .map(([name, data]) => ({ name, ...data }))
+      .sort((a, b) => b.total - a.total)
+      .slice(0, 5);
+  }, [orders]);
 
   const stats = [
     { 
-      label: 'Faturamento Total', 
+      label: 'Faturamento Bruto', 
       value: `R$ ${totalSales.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, 
       icon: Wallet, 
       color: 'bg-emerald-50 text-emerald-600 border-emerald-100',
+      targetTab: 'orders' as const
     },
     { 
-      label: 'Pedidos Realizados', 
+      label: 'Pedidos Totais', 
       value: orders.length, 
       icon: ShoppingCart, 
       color: 'bg-blue-50 text-blue-600 border-blue-100',
+      targetTab: 'orders' as const
     },
     { 
-      label: 'Fila de Pendentes', 
+      label: 'Pendentes Hoje', 
       value: pendingOrders, 
       icon: Clock, 
       color: 'bg-orange-50 text-orange-600 border-orange-100',
+      targetTab: 'orders' as const
     },
     { 
-      label: 'Total Faturados', 
+      label: 'Faturados', 
       value: finishedOrders, 
       icon: CheckCircle2, 
       color: 'bg-red-50 text-red-600 border-red-100',
+      targetTab: 'orders' as const
     },
     { 
-      label: 'Parceiros Ativos', 
+      label: 'Clientes Base', 
       value: clients.length, 
       icon: Users, 
       color: 'bg-slate-50 text-slate-600 border-slate-200',
+      targetTab: 'clients' as const
     },
   ];
 
@@ -141,7 +161,11 @@ const StatsOverview: React.FC<StatsOverviewProps> = ({ products, clients, orders
       {/* Quick Stats Grid */}
       <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
         {stats.map((stat, idx) => (
-          <div key={idx} className={`bg-white border border-slate-200 p-5 rounded-[24px] shadow-sm flex flex-col items-start gap-4 transition-all hover:border-red-200 hover:shadow-md group`}>
+          <button 
+            key={idx} 
+            onClick={() => onNavigate(stat.targetTab)}
+            className={`bg-white border border-slate-200 p-5 rounded-[24px] shadow-sm flex flex-col items-start gap-4 transition-all hover:border-red-400 hover:shadow-xl hover:-translate-y-1 group text-left w-full cursor-pointer`}
+          >
             <div className={`p-2.5 rounded-xl ${stat.color} border shrink-0 transition-transform group-hover:scale-110`}>
               <stat.icon className="w-4 h-4" />
             </div>
@@ -149,12 +173,12 @@ const StatsOverview: React.FC<StatsOverviewProps> = ({ products, clients, orders
               <p className="text-[9px] text-slate-400 font-black uppercase tracking-widest">{stat.label}</p>
               <h3 className="text-base font-black text-slate-900 tracking-tighter mt-1">{stat.value}</h3>
             </div>
-          </div>
+          </button>
         ))}
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Main Sales Chart - MENSAL */}
+        {/* Main Sales Chart */}
         <div className="lg:col-span-2 bg-white border border-slate-200 p-8 rounded-[32px] shadow-sm">
           <div className="flex items-center justify-between mb-10">
             <div className="flex items-center gap-4">
@@ -163,11 +187,11 @@ const StatsOverview: React.FC<StatsOverviewProps> = ({ products, clients, orders
                </div>
                <div>
                  <h3 className="text-sm font-black text-slate-800 uppercase tracking-tight">Evolução Mensal</h3>
-                 <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Faturamento dos últimos 6 meses</p>
+                 <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Performance financeira semestral</p>
                </div>
             </div>
             <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 bg-slate-100 text-slate-600 text-[9px] font-black rounded-lg border border-slate-200 uppercase tracking-widest">
-              Visão Semestral
+              Gráfico Dinâmico
             </div>
           </div>
           
@@ -209,7 +233,7 @@ const StatsOverview: React.FC<StatsOverviewProps> = ({ products, clients, orders
           </div>
         </div>
 
-        {/* Seller Performance Chart - MÊS ATUAL */}
+        {/* Top Sellers Chart */}
         <div className="bg-white border border-slate-200 p-8 rounded-[32px] shadow-sm">
           <div className="flex items-center justify-between mb-10">
             <div className="flex items-center gap-4">
@@ -220,9 +244,6 @@ const StatsOverview: React.FC<StatsOverviewProps> = ({ products, clients, orders
                  <h3 className="text-sm font-black text-slate-800 uppercase tracking-tight">Top Vendedoras</h3>
                  <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Ranking do Mês Atual</p>
                </div>
-            </div>
-            <div className="p-2 bg-emerald-50 text-emerald-600 rounded-lg">
-               <CalendarDays className="w-4 h-4" />
             </div>
           </div>
 
@@ -255,64 +276,103 @@ const StatsOverview: React.FC<StatsOverviewProps> = ({ products, clients, orders
               </div>
             )}
           </div>
-
-          <div className="mt-6 pt-6 border-t border-slate-50 flex items-center justify-between">
-            <div className="flex items-center gap-2">
-               <AlertCircle className="w-3.5 h-3.5 text-slate-300" />
-               <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest">Os dados resetam todo dia 01</span>
-            </div>
-          </div>
         </div>
       </div>
 
-      {/* Progress Card Section */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div className="bg-white border border-slate-200 p-8 rounded-[32px] shadow-sm flex flex-col justify-between group">
-            <div>
-              <div className="flex items-center justify-between mb-6">
-                <h3 className="text-sm font-black text-slate-800 uppercase tracking-tight">Expansão de Carteira</h3>
-                <div className="p-2 bg-slate-50 rounded-lg group-hover:bg-red-50 transition-colors">
-                  <Users className="w-4 h-4 text-slate-400 group-hover:text-red-500" />
-                </div>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Ranking de Clientes */}
+        <div className="bg-white border border-slate-200 rounded-[32px] p-8 shadow-sm">
+          <div className="flex items-center justify-between mb-8">
+            <div className="flex items-center gap-4">
+              <div className="w-10 h-10 bg-amber-50 rounded-xl flex items-center justify-center border border-amber-100 text-amber-600">
+                <Trophy className="w-5 h-5" />
               </div>
-              
-              <div className="flex items-end gap-3 mb-4">
-                <span className="text-5xl font-black text-slate-900 tracking-tighter leading-none">
-                  {Math.min(100, (clients.length / 50) * 100).toFixed(0)}%
-                </span>
-                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5">Meta Alcançada</p>
+              <div>
+                <h3 className="text-sm font-black text-slate-800 uppercase tracking-tight">Ranking de Clientes</h3>
+                <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Maiores volumes de compra</p>
               </div>
-
-              <div className="w-full h-3 bg-slate-50 rounded-full overflow-hidden border border-slate-100">
-                <div 
-                  className="h-full bg-red-600 rounded-full transition-all duration-1000 shadow-sm" 
-                  style={{ width: `${Math.min(100, (clients.length / 50) * 100)}%` }}
-                />
-              </div>
-              <p className="text-[9px] font-black text-slate-400 uppercase mt-4 tracking-[0.2em]">{clients.length} de 50 Parceiros Credenciados</p>
             </div>
+            <button 
+              onClick={() => onNavigate('clients')}
+              className="text-red-600 text-[10px] font-black uppercase tracking-widest hover:underline flex items-center gap-1"
+            >
+              Ver Todos <ArrowUpRight className="w-3 h-3" />
+            </button>
+          </div>
+
+          <div className="space-y-4">
+            {clientRanking.length > 0 ? (
+              clientRanking.map((client, idx) => (
+                <div key={idx} className="flex items-center justify-between p-4 bg-slate-50 border border-slate-100 rounded-2xl group hover:border-amber-200 transition-all">
+                  <div className="flex items-center gap-4">
+                    <div className={`w-8 h-8 rounded-lg flex items-center justify-center font-black text-[10px] ${
+                      idx === 0 ? 'bg-amber-500 text-white' : 
+                      idx === 1 ? 'bg-slate-300 text-slate-600' : 
+                      'bg-orange-200 text-orange-700'
+                    }`}>
+                      {idx + 1}º
+                    </div>
+                    <div>
+                      <p className="text-xs font-black text-slate-800 uppercase truncate max-w-[150px]">{client.name}</p>
+                      <p className="text-[9px] text-slate-400 font-bold uppercase mt-0.5">{client.orders} Pedidos Realizados</p>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-xs font-black text-slate-900 tracking-tighter">R$ {client.total.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
+                  </div>
+                </div>
+              ))
+            ) : (
+              <div className="py-10 text-center text-slate-300 text-[10px] font-black uppercase">Nenhum dado disponível</div>
+            )}
+          </div>
         </div>
 
-        <div className="bg-slate-900 p-8 rounded-[32px] shadow-xl relative overflow-hidden flex flex-col justify-center">
-            <div className="absolute top-0 right-0 p-10 opacity-10">
-              <Package className="w-32 h-32 text-white" />
-            </div>
-            <div className="relative z-10">
-              <h3 className="text-sm font-black text-white uppercase tracking-widest mb-2 italic">Performance Operacional</h3>
-              <p className="text-slate-400 text-xs font-bold leading-relaxed max-w-xs">
-                Seu ecossistema conta com <span className="text-red-500">{products.length}</span> itens ativos e <span className="text-red-500">{sellers.length}</span> vendedoras gerindo o fluxo de caixa.
-              </p>
-              <div className="mt-8 flex gap-4">
-                 <div className="bg-white/5 border border-white/10 px-4 py-2 rounded-xl">
-                    <p className="text-[8px] font-black text-slate-500 uppercase mb-0.5">Ticket Médio</p>
-                    <p className="text-sm font-black text-white">R$ {(totalSales / (orders.length || 1)).toFixed(2).replace('.', ',')}</p>
-                 </div>
-                 <div className="bg-white/5 border border-white/10 px-4 py-2 rounded-xl">
-                    <p className="text-[8px] font-black text-slate-500 uppercase mb-0.5">Taxa Conversão</p>
-                    <p className="text-sm font-black text-white">{((finishedOrders / (orders.length || 1)) * 100).toFixed(1)}%</p>
-                 </div>
+        {/* Controle de Venda Mensal (Lista) */}
+        <div className="bg-white border border-slate-200 rounded-[32px] p-8 shadow-sm">
+          <div className="flex items-center justify-between mb-8">
+            <div className="flex items-center gap-4">
+              <div className="w-10 h-10 bg-slate-900 rounded-xl flex items-center justify-center border border-slate-800 text-white">
+                <History className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="text-sm font-black text-slate-800 uppercase tracking-tight">Venda Mensal</h3>
+                <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Histórico de faturamento bruto</p>
               </div>
             </div>
+            <button 
+              onClick={() => onNavigate('orders')}
+              className="text-slate-400 text-[10px] font-black uppercase tracking-widest hover:text-red-600 transition-colors"
+            >
+              Relatório Completo
+            </button>
+          </div>
+
+          <div className="space-y-2">
+            {salesChartData.slice().reverse().map((data, idx) => (
+              <div key={idx} className="flex items-center justify-between p-3 border-b border-slate-50 last:border-0">
+                <div className="flex items-center gap-3">
+                  <div className="w-2 h-2 rounded-full bg-red-500" />
+                  <span className="text-[11px] font-black text-slate-600 uppercase tracking-widest">{data.name}</span>
+                </div>
+                <span className="text-xs font-black text-slate-900 tracking-tighter">
+                  R$ {data.vendas.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                </span>
+              </div>
+            ))}
+          </div>
+
+          <div className="mt-8 pt-6 border-t border-slate-100">
+             <div className="bg-emerald-50 rounded-2xl p-4 flex items-center justify-between border border-emerald-100">
+                <div className="flex items-center gap-3">
+                  <CheckCircle2 className="w-5 h-5 text-emerald-600" />
+                  <span className="text-[10px] font-black text-emerald-700 uppercase tracking-widest">Total Acumulado</span>
+                </div>
+                <span className="text-sm font-black text-emerald-800 tracking-tighter">
+                  R$ {totalSales.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                </span>
+             </div>
+          </div>
         </div>
       </div>
     </div>

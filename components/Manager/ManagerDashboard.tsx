@@ -204,7 +204,15 @@ const ManagerDashboard: React.FC<ManagerDashboardProps> = ({
 
         <div className="flex-1 overflow-auto p-4 sm:p-8 scrollbar-hide pb-32 lg:pb-8">
           <div className="max-w-6xl mx-auto">
-            {activeTab === 'dashboard' && <StatsOverview products={products} clients={clients} orders={orders} sellers={sellers} />}
+            {activeTab === 'dashboard' && (
+              <StatsOverview 
+                products={products} 
+                clients={clients} 
+                orders={orders} 
+                sellers={sellers} 
+                onNavigate={(tab) => setActiveTab(tab)}
+              />
+            )}
             {activeTab === 'products' && (
               <ProductList products={products} setProducts={setProducts} />
             )}
