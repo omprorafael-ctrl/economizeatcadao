@@ -23,11 +23,13 @@ import {
   EyeOff, 
   Loader2,
   ShoppingBag,
-  CheckCircle2
+  CheckCircle2,
+  Info
 } from 'lucide-react';
 import Catalog from './Catalog';
 import Cart from './Cart';
 import OrderHistory from './OrderHistory';
+import AboutSection from '../Shared/AboutSection';
 import { auth, db } from '../../firebaseConfig';
 import { updatePassword } from 'firebase/auth';
 import { doc, updateDoc, collection, query, where, orderBy, onSnapshot, limit, deleteDoc } from 'firebase/firestore';
@@ -41,7 +43,7 @@ interface ClientDashboardProps {
   onLogout: () => void;
 }
 
-type TabType = 'catalog' | 'cart' | 'history' | 'profile';
+type TabType = 'catalog' | 'cart' | 'history' | 'profile' | 'about';
 
 const ClientDashboard: React.FC<ClientDashboardProps> = ({ 
   user, products, orders, sellers, setOrders, onLogout 
@@ -257,11 +259,12 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({
                <button onClick={() => setShowSideMenu(false)} className="absolute top-6 right-6 p-2 text-slate-300 hover:text-red-600"><X className="w-5 h-5" /></button>
             </div>
             
-            <div className="flex-1 p-4 space-y-2">
+            <div className="flex-1 p-4 space-y-2 overflow-y-auto">
                <SideMenuButton active={activeTab === 'catalog'} onClick={() => { setActiveTab('catalog'); setShowSideMenu(false); }} icon={List} label="Fazer Pedido" />
                <SideMenuButton active={activeTab === 'cart'} onClick={() => { setActiveTab('cart'); setShowSideMenu(false); }} icon={ShoppingCart} label="Cesta de Itens" count={cartCount} />
                <SideMenuButton active={activeTab === 'history'} onClick={() => { setActiveTab('history'); setShowSideMenu(false); }} icon={History} label="Meus Pedidos" />
                <SideMenuButton active={activeTab === 'profile'} onClick={() => { setActiveTab('profile'); setShowSideMenu(false); }} icon={User} label="Meu Cadastro" />
+               <SideMenuButton active={activeTab === 'about'} onClick={() => { setActiveTab('about'); setShowSideMenu(false); }} icon={Info} label="Sobre o Sistema" />
             </div>
 
             <div className="p-8 border-t border-slate-50">
@@ -278,6 +281,7 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({
           {activeTab === 'catalog' && <Catalog products={products} onAddToCart={addToCart} />}
           {activeTab === 'cart' && <Cart cart={cart} user={user} sellers={sellers} updateQuantity={updateQuantity} removeFromCart={removeFromCart} onUpdatePrice={updateItemPrice} onOrderCreated={() => { setCart([]); setActiveTab('history'); }} />}
           {activeTab === 'history' && <div className="max-w-4xl mx-auto h-full"><OrderHistory orders={clientOrders} /></div>}
+          {activeTab === 'about' && <AboutSection />}
           {activeTab === 'profile' && (
             <div className="max-w-2xl mx-auto p-10 space-y-8 animate-in fade-in duration-500 h-full">
               <div className="text-center pb-8 border-b border-slate-50">

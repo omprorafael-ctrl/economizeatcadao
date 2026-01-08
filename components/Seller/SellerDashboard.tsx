@@ -28,13 +28,15 @@ import {
   ClipboardCheck,
   UserCircle,
   Send,
-  ChevronRight
+  ChevronRight,
+  Info
 } from 'lucide-react';
 import { db, auth } from '../../firebaseConfig';
 import { doc, updateDoc, collection, addDoc } from 'firebase/firestore';
 import { updatePassword } from 'firebase/auth';
 import { can, PermissionAction } from '../../utils/permissions';
 import FiscalCoupon from '../Shared/FiscalCoupon';
+import AboutSection from '../Shared/AboutSection';
 
 interface SellerDashboardProps {
   user: Seller;
@@ -47,7 +49,7 @@ const SellerDashboard: React.FC<SellerDashboardProps> = ({ user, orders, clients
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [selectedCoupon, setSelectedCoupon] = useState<Order | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
-  const [activeTab, setActiveTab] = useState<'portfolio' | 'history' | 'clients' | 'profile'>('portfolio');
+  const [activeTab, setActiveTab] = useState<'portfolio' | 'history' | 'clients' | 'profile' | 'about'>('portfolio');
   const [updatingId, setUpdatingId] = useState<string | null>(null);
   const [showPasswordModal, setShowPasswordModal] = useState(false);
   const [statusFilter, setStatusFilter] = useState<string>('all');
@@ -69,12 +71,14 @@ const SellerDashboard: React.FC<SellerDashboardProps> = ({ user, orders, clients
         o.status !== OrderStatus.CANCELLED && 
         o.status !== OrderStatus.FINISHED
       );
-    } else {
+    } else if (activeTab === 'history') {
       base = myOrders.filter(o => 
         o.status === OrderStatus.INVOICED || 
         o.status === OrderStatus.CANCELLED || 
         o.status === OrderStatus.FINISHED
       );
+    } else {
+      return [];
     }
 
     return base.filter(o => {
@@ -126,7 +130,6 @@ const SellerDashboard: React.FC<SellerDashboardProps> = ({ user, orders, clients
       
       if (reason) updateData.cancelReason = reason;
 
-      // NOTIFICAÇÕES PARA O CLIENTE
       if (newStatus === OrderStatus.IN_PROGRESS) {
         updateData.receivedAt = now;
         await addDoc(collection(db, 'notifications'), {
@@ -234,19 +237,14 @@ const SellerDashboard: React.FC<SellerDashboardProps> = ({ user, orders, clients
         <TabBtn active={activeTab === 'portfolio'} onClick={() => setActiveTab('portfolio')} icon={Briefcase} label="Em Carteira" />
         <TabBtn active={activeTab === 'history'} onClick={() => setActiveTab('history')} icon={History} label="Histórico" />
         <TabBtn active={activeTab === 'clients'} onClick={() => setActiveTab('clients')} icon={Users} label="Clientes" />
+        <TabBtn active={activeTab === 'about'} onClick={() => setActiveTab('about')} icon={Info} label="Sobre" />
       </div>
 
-      <main className="flex-1 overflow-auto p-4 sm:p-8 pb-24">
-        <div className="max-w-4xl mx-auto space-y-6">
-          {activeTab !== 'profile' && (
-            <div className="flex justify-between items-center px-2">
-              <h2 className="text-[11px] font-black text-slate-400 uppercase tracking-[0.3em]">
-                {activeTab === 'portfolio' ? 'Pedidos Ativos' : activeTab === 'history' ? 'Finalizados' : 'Base de Clientes'}
-              </h2>
-            </div>
-          )}
+      <main className="flex-1 overflow-auto p-4 sm:p-8 pb-24 h-full">
+        <div className="max-w-4xl mx-auto h-full">
+          {activeTab === 'about' && <AboutSection />}
 
-          {activeTab === 'clients' ? (
+          {activeTab === 'clients' && (
             <div className="grid grid-cols-1 gap-4">
               {displayedClients.map(client => (
                 <div key={client.id} className="bg-white rounded-[32px] border border-slate-100 p-6 flex justify-between items-center shadow-sm">
@@ -257,11 +255,13 @@ const SellerDashboard: React.FC<SellerDashboardProps> = ({ user, orders, clients
                       <p className="text-[10px] text-slate-400 font-bold mt-1 uppercase tracking-widest">{client.cpfCnpj}</p>
                     </div>
                   </div>
-                  <a href={`https://wa.me/${client.phone.replace(/\D/g, '')}`} target="_blank" className="p-3 bg-emerald-50 text-emerald-600 rounded-xl border border-emerald-100 transition-colors"><MessageCircle className="w-5 h-5" /></a>
+                  <a href={`https://wa.me/${client.phone.replace(/\D/g, '')}`} target="_blank" rel="noopener noreferrer" className="p-3 bg-emerald-50 text-emerald-600 rounded-xl border border-emerald-100 transition-colors"><MessageCircle className="w-5 h-5" /></a>
                 </div>
               ))}
             </div>
-          ) : activeTab === 'profile' ? (
+          )}
+
+          {activeTab === 'profile' && (
             <div className="p-10 bg-white rounded-[40px] border border-slate-100 text-center space-y-6 shadow-md">
                <div className="w-24 h-24 bg-red-50 text-red-600 rounded-full flex items-center justify-center mx-auto border border-red-100 shadow-inner">
                   <UserCircle className="w-12 h-12" />
@@ -274,7 +274,9 @@ const SellerDashboard: React.FC<SellerDashboardProps> = ({ user, orders, clients
                   <button onClick={() => setShowPasswordModal(true)} className="px-10 py-3.5 bg-red-600 text-white font-black text-[10px] uppercase rounded-2xl hover:bg-red-700 transition-all shadow-xl">Configurar Senha</button>
                </div>
             </div>
-          ) : (
+          )}
+
+          {(activeTab === 'portfolio' || activeTab === 'history') && (
             <div className="space-y-4">
               {displayedOrders.map(order => {
                 const status = statusMap[order.status] || statusMap[OrderStatus.GENERATED];
@@ -332,7 +334,7 @@ const SellerDashboard: React.FC<SellerDashboardProps> = ({ user, orders, clients
         </div>
       </main>
 
-      {/* Action Modal de Confirmação (Centralizado e visível) */}
+      {/* Action Modal de Confirmação */}
       {actionModal.isOpen && (
         <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-slate-900/80 backdrop-blur-md animate-in fade-in duration-300">
           <div className="bg-white w-full max-w-sm rounded-[40px] overflow-hidden shadow-2xl border border-white/20">

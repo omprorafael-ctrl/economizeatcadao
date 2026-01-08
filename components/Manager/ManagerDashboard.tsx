@@ -1,13 +1,14 @@
 
 import React, { useState, useEffect } from 'react';
 import { User, Product, ClientData, Order, Seller, AppNotification } from '../../types';
-import { LayoutDashboard, Package, Users, ShoppingCart, LogOut, ShieldCheck, Settings, Contact, Menu, Bell, X, Trash2, CheckCircle, ShoppingBag } from 'lucide-react';
+import { LayoutDashboard, Package, Users, ShoppingCart, LogOut, ShieldCheck, Settings, Contact, Menu, Bell, X, Trash2, CheckCircle, ShoppingBag, Info } from 'lucide-react';
 import ProductList from './ProductList';
 import ClientList from './ClientList';
 import OrderList from './OrderList';
 import StatsOverview from './StatsOverview';
 import AdminManager from './AdminManager';
 import SellerList from './SellerList';
+import AboutSection from '../Shared/AboutSection';
 import { collection, onSnapshot, query, orderBy, limit, doc, updateDoc, deleteDoc } from 'firebase/firestore';
 import { db } from '../../firebaseConfig';
 
@@ -29,7 +30,7 @@ interface ManagerDashboardProps {
 const ManagerDashboard: React.FC<ManagerDashboardProps> = ({ 
   user, products, setProducts, clients, setClients, orders, setOrders, managers, setManagers, sellers, setSellers, onLogout 
 }) => {
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'products' | 'clients' | 'orders' | 'admins' | 'sellers'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'products' | 'clients' | 'orders' | 'admins' | 'sellers' | 'about'>('dashboard');
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
   const [showNotifications, setShowNotifications] = useState(false);
 
@@ -49,6 +50,7 @@ const ManagerDashboard: React.FC<ManagerDashboardProps> = ({
     { id: 'sellers', label: 'Vendedoras', icon: Contact },
     { id: 'orders', label: 'Pedidos', icon: ShoppingCart },
     { id: 'admins', label: 'Gestão', icon: ShieldCheck },
+    { id: 'about', label: 'Sobre', icon: Info },
   ];
 
   const unreadCount = notifications.filter(n => !n.read).length;
@@ -80,7 +82,7 @@ const ManagerDashboard: React.FC<ManagerDashboardProps> = ({
           </div>
         </div>
         
-        <nav className="flex-1 px-4 space-y-1.5 mt-2">
+        <nav className="flex-1 px-4 space-y-1.5 mt-2 overflow-y-auto scrollbar-hide">
           {menuItems.map((item) => (
             <button
               key={item.id}
@@ -203,7 +205,7 @@ const ManagerDashboard: React.FC<ManagerDashboardProps> = ({
         </header>
 
         <div className="flex-1 overflow-auto p-4 sm:p-8 scrollbar-hide pb-32 lg:pb-8">
-          <div className="max-w-6xl mx-auto">
+          <div className="max-w-6xl mx-auto h-full">
             {activeTab === 'dashboard' && (
               <StatsOverview 
                 products={products} 
@@ -228,28 +230,26 @@ const ManagerDashboard: React.FC<ManagerDashboardProps> = ({
             {activeTab === 'admins' && (
               <AdminManager managers={managers} setManagers={setManagers} currentUser={user} />
             )}
+            {activeTab === 'about' && (
+              <AboutSection />
+            )}
           </div>
         </div>
 
         {/* Mobile Navigation Bar */}
         <div className="lg:hidden fixed bottom-6 left-1/2 -translate-x-1/2 w-[94%] max-w-[500px] bg-white border border-slate-100 rounded-[24px] flex items-center justify-around py-3 px-2 shadow-2xl z-50 backdrop-blur-md">
-          {menuItems.map((item) => (
-            <button 
-              key={item.id}
-              onClick={() => setActiveTab(item.id as any)}
-              className={`flex flex-col items-center p-2 rounded-xl transition-all min-w-[50px] ${activeTab === item.id ? 'text-red-600 bg-red-50/50' : 'text-slate-300'}`}
-            >
-              <item.icon className={`w-5 h-5 mb-1 ${activeTab === item.id ? 'stroke-[2.5px]' : 'stroke-2'}`} />
-              <span className="text-[8px] font-black uppercase tracking-tighter">{item.label}</span>
-            </button>
-          ))}
-          <button 
-            onClick={onLogout}
-            className="flex flex-col items-center p-2 rounded-xl transition-all min-w-[50px] text-slate-300 hover:text-red-600"
-          >
-            <LogOut className="w-5 h-5 mb-1 stroke-2" />
-            <span className="text-[8px] font-black uppercase tracking-tighter">Sair</span>
-          </button>
+          <div className="flex overflow-x-auto scrollbar-hide gap-1 w-full px-2">
+            {menuItems.map((item) => (
+              <button 
+                key={item.id}
+                onClick={() => setActiveTab(item.id as any)}
+                className={`flex flex-col items-center p-2 rounded-xl transition-all min-w-[55px] ${activeTab === item.id ? 'text-red-600 bg-red-50/50' : 'text-slate-300'}`}
+              >
+                <item.icon className={`w-5 h-5 mb-1 ${activeTab === item.id ? 'stroke-[2.5px]' : 'stroke-2'}`} />
+                <span className="text-[8px] font-black uppercase tracking-tighter">{item.label}</span>
+              </button>
+            ))}
+          </div>
         </div>
       </main>
     </div>
