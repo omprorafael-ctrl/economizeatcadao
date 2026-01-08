@@ -32,7 +32,7 @@ import OrderHistory from './OrderHistory';
 import AboutSection from '../Shared/AboutSection';
 import { auth, db } from '../../firebaseConfig';
 import { updatePassword } from 'firebase/auth';
-import { doc, updateDoc, collection, query, where, orderBy, onSnapshot, limit, deleteDoc } from 'firebase/firestore';
+import { doc, updateDoc, collection, query, where, onSnapshot, deleteDoc } from 'firebase/firestore';
 
 interface ClientDashboardProps {
   user: ClientData;
@@ -60,17 +60,23 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({
   const [isIos, setIsIos] = useState(false);
 
   useEffect(() => {
+    // Ajustado para evitar erro de índice: removemos o orderBy da query do servidor
     const q = query(
       collection(db, 'notifications'), 
-      where('recipientId', '==', user.id),
-      orderBy('createdAt', 'desc'), 
-      limit(20)
+      where('recipientId', '==', user.id)
     );
     
     const unsubscribe = onSnapshot(q, (snapshot) => {
-      const notifs = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as AppNotification));
+      const notifs = snapshot.docs
+        .map(doc => ({ ...doc.data(), id: doc.id } as AppNotification))
+        // Ordenamos em memória para evitar a necessidade de criar índices compostos no Firebase
+        .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+        .slice(0, 20); // Mantemos o limite de 20 itens
+        
       setNotifications(notifs);
-    }, (err) => console.error("Erro Notificações Cliente:", err));
+    }, (err) => {
+      console.error("Erro Notificações Cliente:", err);
+    });
 
     return () => unsubscribe();
   }, [user.id]);
