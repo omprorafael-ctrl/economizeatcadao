@@ -44,7 +44,7 @@ interface StatsOverviewProps {
   clients: ClientData[];
   orders: Order[];
   sellers?: Seller[];
-  onNavigate: (tab: 'dashboard' | 'products' | 'clients' | 'orders' | 'admins' | 'sellers' | 'monthly') => void;
+  onNavigate: (tab: 'dashboard' | 'products' | 'clients' | 'orders' | 'admins' | 'sellers' | 'monthly' | 'about') => void;
 }
 
 const StatsOverview: React.FC<StatsOverviewProps> = ({ products, clients, orders, sellers = [], onNavigate }) => {
@@ -251,11 +251,11 @@ const StatsOverview: React.FC<StatsOverviewProps> = ({ products, clients, orders
             <div className="flex gap-2">
               <button 
                 onClick={() => onNavigate('monthly')}
-                className="flex items-center gap-2 px-3 py-1.5 bg-slate-100 text-slate-600 text-[9px] font-black uppercase tracking-widest rounded-lg border border-slate-200 hover:bg-white transition-all"
+                className="z-10 flex items-center gap-2 px-3 py-1.5 bg-slate-100 text-slate-600 text-[9px] font-black uppercase tracking-widest rounded-lg border border-slate-200 hover:bg-white transition-all cursor-pointer"
               >
                 Relatórios <ChevronRight className="w-3.5 h-3.5" />
               </button>
-              <button onClick={() => setShowClearModal(true)} className="flex items-center gap-2 px-3 py-1.5 bg-red-50 text-red-600 text-[9px] font-black uppercase tracking-widest rounded-lg border border-red-100 hover:bg-red-600 hover:text-white transition-all">
+              <button onClick={() => setShowClearModal(true)} className="z-10 flex items-center gap-2 px-3 py-1.5 bg-red-50 text-red-600 text-[9px] font-black uppercase tracking-widest rounded-lg border border-red-100 hover:bg-red-600 hover:text-white transition-all cursor-pointer">
                 <Trash2 className="w-3.5 h-3.5" /> Limpar
               </button>
             </div>

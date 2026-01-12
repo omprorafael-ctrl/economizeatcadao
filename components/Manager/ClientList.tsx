@@ -47,6 +47,12 @@ const ClientList: React.FC<ClientListProps> = ({ clients }) => {
 
   const isDocValid = formData.cpfCnpj ? isValidCpfCnpj(formData.cpfCnpj) : true;
 
+  const resetForm = () => {
+    setFormData({ name: '', cpfCnpj: '', phone: '', address: '' });
+    setShowModal(false);
+    setEditingClient(null);
+  };
+
   const handleOpenEdit = (client: any) => {
     setEditingClient(client);
     setFormData({
@@ -56,12 +62,6 @@ const ClientList: React.FC<ClientListProps> = ({ clients }) => {
       address: client.address || ''
     });
     setShowModal(true);
-  };
-
-  const resetForm = () => {
-    setFormData({ name: '', cpfCnpj: '', phone: '', address: '' });
-    setShowModal(false);
-    setEditingClient(null);
   };
 
   const handleSaveClient = async (e: React.FormEvent) => {
@@ -84,10 +84,9 @@ const ClientList: React.FC<ClientListProps> = ({ clients }) => {
         });
         resetForm();
       } else {
-        // Lógica de Geração Automática de Credenciais
         const firstName = formData.name.trim().split(' ')[0].toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
         const generatedEmail = `${firstName}@economize.com`;
-        const generatedPassword = formData.cpfCnpj.replace(/\D/g, ''); // Senha é o CPF limpo
+        const generatedPassword = formData.cpfCnpj.replace(/\D/g, '');
 
         if (generatedPassword.length < 6) {
           alert("O CPF/CNPJ deve ter pelo menos 6 dígitos para servir como senha.");
@@ -116,8 +115,9 @@ const ClientList: React.FC<ClientListProps> = ({ clients }) => {
         await setDoc(doc(db, 'users', uid), newClient);
         await signOut(secondaryAuth);
         await deleteApp(secondaryApp);
-        resetForm();
+        
         alert(`Cliente criado!\nLogin: ${firstName}\nSenha: ${generatedPassword}`);
+        resetForm();
       }
     } catch (error: any) {
       console.error(error);
@@ -239,9 +239,6 @@ const ClientList: React.FC<ClientListProps> = ({ clients }) => {
                 <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest">
                   {editingClient ? 'Gestão de Cadastro' : 'Novo Credenciamento'}
                 </h3>
-                <p className="text-[9px] text-slate-400 font-bold uppercase tracking-widest mt-1">
-                  Login automático via Primeiro Nome | Senha via CPF
-                </p>
               </div>
               <button onClick={() => !loading && resetForm()} className="p-2 bg-white text-slate-400 hover:text-red-600 rounded-xl border border-slate-100"><X className="w-5 h-5" /></button>
             </div>
@@ -293,24 +290,10 @@ const ClientList: React.FC<ClientListProps> = ({ clients }) => {
                 </div>
               </div>
 
-              {!editingClient && (
-                <div className="p-4 bg-blue-50 border border-blue-100 rounded-2xl flex gap-3 items-center">
-                  <AlertCircle className="w-5 h-5 text-blue-600 shrink-0" />
-                  <p className="text-[9px] font-bold text-blue-800 uppercase tracking-widest">
-                    As credenciais de acesso serão geradas automaticamente e enviadas ao cliente após salvar.
-                  </p>
-                </div>
-              )}
-
               <div className="pt-8 flex gap-4">
-                <button type="button" onClick={() => resetForm()} className="flex-1 py-4 bg-slate-100 text-slate-500 font-black rounded-2xl text-[10px] uppercase tracking-widest hover:bg-slate-200 transition-all">Descartar</button>
-                <button type="submit" disabled={loading || !isDocValid} className="flex-[2] bg-red-600 text-white py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-2xl shadow-red-100 hover:bg-red-700 active:scale-95 transition-all flex items-center justify-center gap-3 disabled:opacity-50">
-                  {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : (
-                    <>
-                      {editingClient ? 'Salvar Alterações' : 'Finalizar Cadastro'} 
-                      <Check className="w-4 h-4" />
-                    </>
-                  )}
+                <button type="button" onClick={resetForm} className="flex-1 py-4 bg-slate-100 text-slate-500 font-black rounded-2xl text-[10px] uppercase tracking-widest hover:bg-slate-200 transition-all">Cancelar</button>
+                <button type="submit" disabled={loading || !isDocValid} className="flex-[2] bg-red-600 text-white py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-2xl shadow-red-100 hover:bg-red-700 transition-all flex items-center justify-center gap-3 disabled:opacity-50">
+                  {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : (editingClient ? 'Salvar' : 'Finalizar')}
                 </button>
               </div>
             </form>
