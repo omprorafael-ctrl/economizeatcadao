@@ -30,10 +30,9 @@ import Catalog from './Catalog';
 import Cart from './Cart';
 import OrderHistory from './OrderHistory';
 import AboutSection from '../Shared/AboutSection';
-import IOSInstallPrompt from '../Shared/IOSInstallPrompt';
 import { auth, db } from '../../firebaseConfig';
 import { updatePassword } from 'firebase/auth';
-import { doc, updateDoc, collection, query, where, onSnapshot, deleteDoc } from 'firebase/firestore';
+import { doc, updateDoc, collection, query, where, orderBy, onSnapshot, limit, deleteDoc } from 'firebase/firestore';
 
 interface ClientDashboardProps {
   user: ClientData;
@@ -57,42 +56,45 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({
   const [showPasswordModal, setShowPasswordModal] = useState(false);
   
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
-  const [showAndroidInstall, setShowAndroidInstall] = useState(false);
+  const [showInstallBanner, setShowInstallBanner] = useState(false);
+  const [isIos, setIsIos] = useState(false);
 
   useEffect(() => {
     const q = query(
       collection(db, 'notifications'), 
-      where('recipientId', '==', user.id)
+      where('recipientId', '==', user.id),
+      orderBy('createdAt', 'desc'), 
+      limit(20)
     );
     
     const unsubscribe = onSnapshot(q, (snapshot) => {
-      const notifs = snapshot.docs
-        .map(doc => ({ ...doc.data(), id: doc.id } as AppNotification))
-        .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-        .slice(0, 20);
-        
+      const notifs = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as AppNotification));
       setNotifications(notifs);
-    }, (err) => {
-      console.error("Erro Notificações Cliente:", err);
-    });
+    }, (err) => console.error("Erro Notificações Cliente:", err));
 
     return () => unsubscribe();
   }, [user.id]);
 
   useEffect(() => {
-    // Escuta o evento de instalação do Android
-    window.addEventListener('beforeinstallprompt', (e) => {
-      e.preventDefault();
-      setDeferredPrompt(e);
-      setShowAndroidInstall(true);
-    });
+    const isStandalone = window.matchMedia('(display-mode: standalone)').matches || (window.navigator as any).standalone;
+    const isIosDevice = /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as any).MSStream;
+    setIsIos(isIosDevice);
+
+    if (!isStandalone) {
+      window.addEventListener('beforeinstallprompt', (e) => {
+        e.preventDefault();
+        setDeferredPrompt(e);
+        setShowInstallBanner(true);
+      });
+      if (isIosDevice) setShowInstallBanner(true);
+    }
   }, []);
 
-  const handleAndroidInstall = async () => {
+  const handleInstallApp = async () => {
     if (deferredPrompt) {
       deferredPrompt.prompt();
       const { outcome } = await deferredPrompt.userChoice;
-      if (outcome === 'accepted') setShowAndroidInstall(false);
+      if (outcome === 'accepted') setShowInstallBanner(false);
       setDeferredPrompt(null);
     }
   };
@@ -148,8 +150,7 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({
   return (
     <div className="flex flex-col min-h-screen bg-white font-sans text-slate-800 overflow-hidden relative">
       
-      {/* Banner de Instalação para Android */}
-      {showAndroidInstall && (
+      {showInstallBanner && (
         <div className="fixed top-0 inset-x-0 z-[60] animate-in slide-in-from-top duration-500">
            <div className="bg-slate-900 text-white p-4 flex items-center justify-between border-b border-red-600 shadow-xl">
               <div className="flex items-center gap-3">
@@ -158,19 +159,18 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({
                  </div>
                  <div>
                     <p className="text-[10px] font-black uppercase tracking-widest leading-none">ECONOMIZE ATACADÃO</p>
-                    <p className="text-[9px] text-slate-400 font-bold uppercase mt-1">Instale para acesso instantâneo</p>
+                    <p className="text-[9px] text-slate-400 font-bold uppercase mt-1">
+                       {isIos ? "Adicione à Tela de Início via Compartilhar" : "Instale para acesso instantâneo"}
+                    </p>
                  </div>
               </div>
               <div className="flex items-center gap-2">
-                 <button onClick={handleAndroidInstall} className="px-4 py-2 bg-red-600 text-white text-[9px] font-black uppercase tracking-widest">Instalar</button>
-                 <button onClick={() => setShowAndroidInstall(false)} className="p-2 text-slate-500"><X className="w-4 h-4" /></button>
+                 {!isIos && <button onClick={handleInstallApp} className="px-4 py-2 bg-red-600 text-white text-[9px] font-black uppercase tracking-widest">Instalar</button>}
+                 <button onClick={() => setShowInstallBanner(false)} className="p-2 text-slate-500"><X className="w-4 h-4" /></button>
               </div>
            </div>
         </div>
       )}
-
-      {/* Prompt Especial para iOS */}
-      <IOSInstallPrompt />
 
       <header className={`bg-white border-b border-slate-50 sticky top-0 z-40 transition-all duration-300 ${activeTab === 'catalog' || activeTab === 'cart' ? 'py-2' : 'py-3'}`}>
         <div className="max-w-7xl mx-auto px-5 sm:px-8">
@@ -351,7 +351,7 @@ const ChangePasswordModal: React.FC<{ onClose: () => void }> = ({ onClose }) => 
   return (
     <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 backdrop-blur-md bg-slate-900/40">
       <div className="absolute inset-0" onClick={() => !loading && onClose()} />
-      <div className="relative bg-white w-full max-sm rounded-[40px] shadow-2xl border border-slate-200 animate-in zoom-in-95">
+      <div className="relative bg-white w-full max-w-sm rounded-[40px] shadow-2xl border border-slate-200 animate-in zoom-in-95">
         <div className="p-8 bg-slate-50 border-b flex items-center justify-between text-center">
           <h3 className="text-xs font-black text-slate-800 uppercase tracking-widest w-full">Segurança de Primeiro Acesso</h3>
           <button onClick={onClose} className="absolute right-6 top-7 text-slate-400 hover:text-red-600"><X className="w-5 h-5" /></button>

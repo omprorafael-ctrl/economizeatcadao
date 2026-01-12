@@ -19,8 +19,7 @@ import {
   X,
   Lock,
   Loader2,
-  ShieldAlert,
-  ChevronRight
+  ShieldAlert
 } from 'lucide-react';
 import { Product, ClientData, Order, OrderStatus, Seller } from '../../types';
 import { 
@@ -44,7 +43,7 @@ interface StatsOverviewProps {
   clients: ClientData[];
   orders: Order[];
   sellers?: Seller[];
-  onNavigate: (tab: 'dashboard' | 'products' | 'clients' | 'orders' | 'admins' | 'sellers' | 'monthly' | 'about') => void;
+  onNavigate: (tab: 'dashboard' | 'products' | 'clients' | 'orders' | 'admins' | 'sellers') => void;
 }
 
 const StatsOverview: React.FC<StatsOverviewProps> = ({ products, clients, orders, sellers = [], onNavigate }) => {
@@ -123,10 +122,15 @@ const StatsOverview: React.FC<StatsOverviewProps> = ({ products, clients, orders
     setError(null);
 
     try {
+      // Validar senha re-autenticando
       await signInWithEmailAndPassword(auth, auth.currentUser.email, confirmPassword);
+      
+      // Se a senha estiver correta, proceder com a exclusão em massa
       const querySnapshot = await getDocs(collection(db, 'orders'));
       const deletePromises = querySnapshot.docs.map(document => deleteDoc(doc(db, 'orders', document.id)));
+      
       await Promise.all(deletePromises);
+      
       setShowClearModal(false);
       setConfirmPassword('');
       alert("Histórico de pedidos limpo com sucesso!");
@@ -192,7 +196,7 @@ const StatsOverview: React.FC<StatsOverviewProps> = ({ products, clients, orders
         <div className="bg-white border border-slate-200 p-8 rounded-[32px] shadow-sm">
           <div className="flex items-center justify-between mb-10">
             <div className="flex items-center gap-4">
-               <div className="w-10 h-10 bg-emerald-50 rounded-xl flex items-center justify-center text-emerald-600"><Award className="w-5 h-5" /></div>
+               <div className="w-10 h-10 bg-emerald-50 rounded-xl flex items-center justify-center border border-emerald-100"><Award className="w-5 h-5 text-emerald-600" /></div>
                <div>
                  <h3 className="text-sm font-black text-slate-800 uppercase tracking-tight">Top Vendedoras</h3>
                  <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Ranking do Mês Atual</p>
@@ -248,17 +252,9 @@ const StatsOverview: React.FC<StatsOverviewProps> = ({ products, clients, orders
               <div className="w-10 h-10 bg-slate-900 rounded-xl flex items-center justify-center border border-slate-800 text-white"><History className="w-5 h-5" /></div>
               <div><h3 className="text-sm font-black text-slate-800 uppercase tracking-tight">Venda Mensal</h3><p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Faturamento acumulado</p></div>
             </div>
-            <div className="flex gap-2">
-              <button 
-                onClick={() => onNavigate('monthly')}
-                className="z-10 flex items-center gap-2 px-3 py-1.5 bg-slate-100 text-slate-600 text-[9px] font-black uppercase tracking-widest rounded-lg border border-slate-200 hover:bg-white transition-all cursor-pointer"
-              >
-                Relatórios <ChevronRight className="w-3.5 h-3.5" />
-              </button>
-              <button onClick={() => setShowClearModal(true)} className="z-10 flex items-center gap-2 px-3 py-1.5 bg-red-50 text-red-600 text-[9px] font-black uppercase tracking-widest rounded-lg border border-red-100 hover:bg-red-600 hover:text-white transition-all cursor-pointer">
-                <Trash2 className="w-3.5 h-3.5" /> Limpar
-              </button>
-            </div>
+            <button onClick={() => setShowClearModal(true)} className="flex items-center gap-2 px-3 py-1.5 bg-red-50 text-red-600 text-[9px] font-black uppercase tracking-widest rounded-lg border border-red-100 hover:bg-red-600 hover:text-white transition-all">
+              <Trash2 className="w-3.5 h-3.5" /> Limpar Dados
+            </button>
           </div>
           <div className="space-y-2">
             {salesChartData.slice().reverse().map((data, idx) => (
@@ -277,6 +273,7 @@ const StatsOverview: React.FC<StatsOverviewProps> = ({ products, clients, orders
         </div>
       </div>
 
+      {/* Modal de Segurança para Limpeza de Histórico */}
       {showClearModal && (
         <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 backdrop-blur-md bg-slate-900/40">
           <div className="absolute inset-0" onClick={() => !isDeleting && setShowClearModal(false)} />

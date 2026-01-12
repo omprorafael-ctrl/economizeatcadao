@@ -1,16 +1,14 @@
 
 import React, { useState, useEffect } from 'react';
 import { User, Product, ClientData, Order, Seller, AppNotification } from '../../types';
-import { LayoutDashboard, Package, Users, ShoppingCart, LogOut, ShieldCheck, Settings, Contact, Menu, Bell, X, Trash2, CheckCircle, ShoppingBag, Info, BarChartHorizontal } from 'lucide-react';
+import { LayoutDashboard, Package, Users, ShoppingCart, LogOut, ShieldCheck, Settings, Contact, Menu, Bell, X, Trash2, CheckCircle, ShoppingBag, Info } from 'lucide-react';
 import ProductList from './ProductList';
 import ClientList from './ClientList';
 import OrderList from './OrderList';
 import StatsOverview from './StatsOverview';
 import AdminManager from './AdminManager';
 import SellerList from './SellerList';
-import MonthlyHistory from './MonthlyHistory';
 import AboutSection from '../Shared/AboutSection';
-import IOSInstallPrompt from '../Shared/IOSInstallPrompt';
 import { collection, onSnapshot, query, orderBy, limit, doc, updateDoc, deleteDoc } from 'firebase/firestore';
 import { db } from '../../firebaseConfig';
 
@@ -32,7 +30,7 @@ interface ManagerDashboardProps {
 const ManagerDashboard: React.FC<ManagerDashboardProps> = ({ 
   user, products, setProducts, clients, setClients, orders, setOrders, managers, setManagers, sellers, setSellers, onLogout 
 }) => {
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'products' | 'clients' | 'orders' | 'admins' | 'sellers' | 'monthly' | 'about'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'products' | 'clients' | 'orders' | 'admins' | 'sellers' | 'about'>('dashboard');
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
   const [showNotifications, setShowNotifications] = useState(false);
 
@@ -51,7 +49,6 @@ const ManagerDashboard: React.FC<ManagerDashboardProps> = ({
     { id: 'clients', label: 'Parceiros', icon: Users },
     { id: 'sellers', label: 'Vendedoras', icon: Contact },
     { id: 'orders', label: 'Pedidos', icon: ShoppingCart },
-    { id: 'monthly', label: 'Relatórios', icon: BarChartHorizontal },
     { id: 'admins', label: 'Gestão', icon: ShieldCheck },
     { id: 'about', label: 'Sobre', icon: Info },
   ];
@@ -70,7 +67,6 @@ const ManagerDashboard: React.FC<ManagerDashboardProps> = ({
 
   return (
     <div className="flex h-screen bg-slate-50 overflow-hidden text-slate-800 flex-col lg:flex-row">
-      <IOSInstallPrompt />
       
       {/* Sidebar Desktop */}
       <aside className="w-72 bg-white border-r border-slate-200 flex flex-col hidden lg:flex shadow-sm z-20">
@@ -230,9 +226,6 @@ const ManagerDashboard: React.FC<ManagerDashboardProps> = ({
             )}
             {activeTab === 'orders' && (
               <OrderList orders={orders} setOrders={setOrders} sellers={sellers} />
-            )}
-            {activeTab === 'monthly' && (
-              <MonthlyHistory orders={orders} sellers={sellers} clients={clients} />
             )}
             {activeTab === 'admins' && (
               <AdminManager managers={managers} setManagers={setManagers} currentUser={user} />
