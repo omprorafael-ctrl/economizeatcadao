@@ -3,21 +3,25 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App';
 
-// Registro do Service Worker otimizado para ambientes de sandbox
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
-    // Usamos caminho relativo para evitar erro de origin mismatch em iframes
     navigator.serviceWorker.register('sw.js', { scope: './' })
       .then(registration => {
-        console.log('SW ativo no escopo:', registration.scope);
+        console.log('PWA: Service Worker registrado com sucesso.');
+        // Força atualização se houver um novo worker esperando
+        registration.onupdatefound = () => {
+          const installingWorker = registration.installing;
+          if (installingWorker) {
+            installingWorker.onstatechange = () => {
+              if (installingWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                console.log('PWA: Nova versão disponível, recarregue o app.');
+              }
+            };
+          }
+        };
       })
       .catch(error => {
-        // Silenciamos o erro de origem se estivermos em ambiente de desenvolvimento restrito
-        if (!window.location.host.includes('localhost')) {
-          console.warn('Service Worker não suportado neste ambiente de preview (Sandbox).');
-        } else {
-          console.error('Falha ao registrar SW:', error);
-        }
+        console.error('PWA: Falha ao registrar SW:', error);
       });
   });
 }

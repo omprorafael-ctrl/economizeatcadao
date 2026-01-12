@@ -1,11 +1,10 @@
 
-const CACHE_NAME = 'atacadao-v3';
+const CACHE_NAME = 'atacadao-v4';
 const ASSETS_TO_CACHE = [
   './',
   './index.html',
   './manifest.json',
-  './index.css',
-  './index.tsx'
+  './index.css'
 ];
 
 self.addEventListener('install', (event) => {
@@ -33,19 +32,25 @@ self.addEventListener('activate', (event) => {
 });
 
 self.addEventListener('fetch', (event) => {
-  // Ignora chamadas que não sejam GET ou que sejam para APIs externas (como Firebase)
+  // Apenas processa requisições GET
   if (event.request.method !== 'GET') return;
 
+  const url = new URL(event.request.url);
+
+  // Se for uma navegação (abrir o app pelo ícone), prioriza a rede mas cai no index.html se falhar
+  if (event.request.mode === 'navigate') {
+    event.respondWith(
+      fetch(event.request).catch(() => {
+        return caches.match('./index.html');
+      })
+    );
+    return;
+  }
+
+  // Para outros arquivos (CSS, Imagens, etc)
   event.respondWith(
     caches.match(event.request).then((response) => {
-      // Retorna o cache ou tenta buscar na rede
-      return response || fetch(event.request).catch(() => {
-        // Se for uma navegação (abrir o app), retorna o index.html como fallback
-        if (event.request.mode === 'navigate') {
-          return caches.match('./index.html');
-        }
-        return null;
-      });
+      return response || fetch(event.request);
     })
   );
 });
