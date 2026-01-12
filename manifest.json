@@ -23,10 +23,10 @@
       "purpose": "any"
     }
   ],
-  "start_url": "/",
+  "start_url": "index.html",
   "background_color": "#ffffff",
   "display": "standalone",
-  "scope": "/",
+  "scope": "./",
   "theme_color": "#dc2626",
   "orientation": "portrait",
   "categories": ["business", "shopping", "productivity"],
@@ -34,7 +34,7 @@
     {
       "name": "Ver Catálogo",
       "short_name": "Catálogo",
-      "url": "/",
+      "url": "index.html",
       "icons": [{ "src": "https://cdn-icons-png.flaticon.com/512/3081/3081840.png", "sizes": "192x192" }]
     }
   ]
