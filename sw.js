@@ -1,10 +1,10 @@
 
-const CACHE_NAME = 'atacadao-v4';
+const CACHE_NAME = 'atacadao-v5';
 const ASSETS_TO_CACHE = [
   './',
-  './index.html',
-  './manifest.json',
-  './index.css'
+  'index.html',
+  'manifest.json',
+  'index.css'
 ];
 
 self.addEventListener('install', (event) => {
@@ -32,25 +32,28 @@ self.addEventListener('activate', (event) => {
 });
 
 self.addEventListener('fetch', (event) => {
-  // Apenas processa requisições GET
   if (event.request.method !== 'GET') return;
 
   const url = new URL(event.request.url);
 
-  // Se for uma navegação (abrir o app pelo ícone), prioriza a rede mas cai no index.html se falhar
+  // Tratamento especial para navegação (clique no ícone PWA)
   if (event.request.mode === 'navigate') {
     event.respondWith(
       fetch(event.request).catch(() => {
-        return caches.match('./index.html');
+        return caches.match('index.html') || caches.match('./');
       })
     );
     return;
   }
 
-  // Para outros arquivos (CSS, Imagens, etc)
+  // Estratégia Cache-First para outros recursos
   event.respondWith(
     caches.match(event.request).then((response) => {
-      return response || fetch(event.request);
+      return response || fetch(event.request).catch(() => {
+        if (event.request.destination === 'image') {
+          return caches.match('https://cdn-icons-png.flaticon.com/512/3081/3081840.png');
+        }
+      });
     })
   );
 });

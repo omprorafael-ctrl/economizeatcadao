@@ -23,7 +23,7 @@
       "purpose": "any"
     }
   ],
-  "start_url": "./index.html",
+  "start_url": "index.html",
   "background_color": "#ffffff",
   "display": "standalone",
   "scope": "./",
