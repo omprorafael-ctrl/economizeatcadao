@@ -1,3 +1,4 @@
+
 import { 
   collection, 
   addDoc, 
@@ -9,7 +10,7 @@ import {
   updateDoc,
   writeBatch
 } from 'firebase/firestore';
-import { db } from '../firebase';
+import { db } from '../firebaseConfig';
 import { Transaction } from '../types';
 
 const COLLECTION_NAME = 'transactions';
@@ -35,8 +36,6 @@ export const addTransaction = async (transaction: Omit<Transaction, 'id'>) => {
       const batch = writeBatch(db);
       const count = transaction.recurrence.count;
       const baseDate = new Date(transaction.dueDate);
-      // Adjust for timezone offset to prevent date shifting on simple calculations
-      const userTimezoneOffset = baseDate.getTimezoneOffset() * 60000;
       
       const transactionsCreated = [];
 
@@ -64,8 +63,6 @@ export const addTransaction = async (transaction: Omit<Transaction, 'id'>) => {
           ...transaction,
           dueDate: dateStr,
           observation: obs,
-          // Only the first one might be paid immediately, others usually start as pending unless specified otherwise
-          // Logic: If user marks as paid, usually only the first one is paid now.
           status: (i === 0 ? transaction.status : 'pending'), 
           createdAt: Date.now()
         };
@@ -75,10 +72,9 @@ export const addTransaction = async (transaction: Omit<Transaction, 'id'>) => {
       }
 
       await batch.commit();
-      return transactionsCreated[0]; // Return the first one created
+      return transactionsCreated[0]; 
     } 
 
-    // Default: Single transaction or Indefinite recurrence (handled manually later or by another job)
     const docRef = await addDoc(collection(db, COLLECTION_NAME), transaction);
     return { ...transaction, id: docRef.id };
 
@@ -133,7 +129,6 @@ export const deleteAllTransactions = async (userId: string) => {
     
     const querySnapshot = await getDocs(q);
     
-    // Firestore batch limit is 500
     const batch = writeBatch(db);
     let count = 0;
 
